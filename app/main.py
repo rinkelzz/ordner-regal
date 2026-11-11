@@ -33,11 +33,15 @@ async def lifespan(app: FastAPI):
         conn.close()
     if settings.scheduler:
         scheduler.start()
+        from . import fulltext
+        fulltext.start()
     if settings.update_check:
         from . import updates
         updates.check_in_background()  # gleich beim Start, damit die Paketquelle sofort etwas liefert
     yield
     scheduler.stop()
+    from . import fulltext
+    fulltext.stop()
 
 
 app = FastAPI(

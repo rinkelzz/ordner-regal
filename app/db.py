@@ -204,10 +204,47 @@ ALTER TABLE tabs ADD COLUMN target_path TEXT
 """)
 
 
+def _m4_volltext(conn: sqlite3.Connection) -> None:
+    """Version 0.3: Text der Dokumente (und der Dateien im Eingang) für die Volltextsuche.
+    Mit FTS5 (falls das SQLite der NAS es kann) – sonst sucht die App per LIKE im gespeicherten Text."""
+    _run(conn, """
+-- text_status: NULL = noch nicht gelesen, sonst ok | empty | unsupported | toolarge | error
+-- text_mtime: Änderungszeit der Datei beim Lesen
+ALTER TABLE files ADD COLUMN text_status TEXT;
+ALTER TABLE files ADD COLUMN text_mtime REAL;
+CREATE TABLE IF NOT EXISTS file_text (
+    file_id  INTEGER PRIMARY KEY REFERENCES files(id) ON DELETE CASCADE,
+    body     TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS inbox_text (
+    id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    share    TEXT NOT NULL COLLATE NOCASE,
+    relpath  TEXT NOT NULL,
+    size     INTEGER NOT NULL,
+    mtime    REAL NOT NULL,
+    status   TEXT NOT NULL,
+    body     TEXT NOT NULL DEFAULT '',
+    UNIQUE (share, relpath)
+)
+""")
+    for tokenize in ("unicode61 remove_diacritics 2", "unicode61 remove_diacritics 1", "unicode61"):
+        try:
+            conn.execute(f"CREATE VIRTUAL TABLE IF NOT EXISTS file_fts USING fts5(body, tokenize='{tokenize}')")
+            conn.execute(f"CREATE VIRTUAL TABLE IF NOT EXISTS inbox_fts USING fts5(body, tokenize='{tokenize}')")
+            conn.execute("CREATE TRIGGER IF NOT EXISTS files_fts_del AFTER DELETE ON files BEGIN "
+                         "DELETE FROM file_fts WHERE rowid = old.id; END")
+            conn.execute("CREATE TRIGGER IF NOT EXISTS inbox_fts_del AFTER DELETE ON inbox_text BEGIN "
+                         "DELETE FROM inbox_fts WHERE rowid = old.id; END")
+            break
+        except sqlite3.OperationalError:
+            continue  # kein FTS5 oder Option zu neu – nächste Variante bzw. ohne FTS
+
+
 MIGRATIONS: Dict[int, Callable[[sqlite3.Connection], None]] = {
     1: _m1_basis,
     2: _m2_regal,
     3: _m3_eingang,
+    4: _m4_volltext,
 }
 SCHEMA_VERSION = max(MIGRATIONS)
 

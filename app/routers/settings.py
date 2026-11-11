@@ -255,6 +255,7 @@ AUDIT_ACTIONS = {
     "doc_inbox": ("dokumente", "Aus dem Eingang einsortiert"),
     "folder_created": ("dokumente", "Ordner in Freigabe angelegt"),
     "inbox_source": ("einstellungen", "Eingang geändert"),
+    "fulltext_reindex": ("einstellungen", "Volltext neu gelesen"),
     "tag_updated": ("dokumente", "Schlagwort geändert"),
     "tag_deleted": ("dokumente", "Schlagwort gelöscht"),
     "share_updated": ("einstellungen", "Freigabe ein-/ausgeschaltet"),

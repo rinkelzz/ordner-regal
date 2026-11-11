@@ -12,9 +12,9 @@ Regal merkt sich nur, wo sie liegen, und findet sie über ihren Fingerabdruck wi
 Wer was sieht, richtet sich nach den **Rechten in DSM**. Für zu Hause (Versicherungen, Steuer, Verträge) und fürs
 Büro (Ablage pro Kunde auf dessen NAS).
 
-> **Stand 0.2:** Regale, Fächer, Ordner und Register, Dokumente aus Freigaben ablegen, Vorschau, Schlagworte, Suche,
-> Rechte pro Regal und aus DSM, Wiederfinden verschobener Dateien – und der **Scanner-Eingang** zum Einsortieren mit
-> Verschieben in den Zielordner. Siehe [Fahrplan](#fahrplan).
+> **Stand 0.3:** Regale, Fächer, Ordner und Register, Dokumente aus Freigaben ablegen, Vorschau, Schlagworte,
+> Rechte pro Regal und aus DSM, Wiederfinden verschobener Dateien, **Scanner-Eingang** mit Verschieben in den
+> Zielordner und **Volltextsuche** in PDF, Office und Textdateien. Siehe [Fahrplan](#fahrplan).
 
 ![Regal](docs/screenshots/regal.png)
 
@@ -46,7 +46,8 @@ Büro (Ablage pro Kunde auf dessen NAS).
   Verschieben oder zusätzlich ablegen per Dialog oder durch Ziehen auf ein Register (mit Strg/Alt: zusätzlich).
 - **Vorschau** von PDF und Bildern direkt im Ordner, Öffnen in neuem Tab, Herunterladen.
 - **Titel, Datum, Notiz und Schlagworte** pro Dokument – ändern nur die Ablage, nie die Datei.
-- **Suche** in der Kopfzeile (Taste `/`) über Titel, Dateiname, Notiz und Schlagworte; Schlagwort-Wolke zum Filtern.
+- **Suche** in der Kopfzeile (Taste `/`) über Titel, Dateiname, Notiz, Schlagworte und den **Volltext** (siehe unten);
+  Schlagwort-Wolke zum Filtern.
 - **Wiederfinden:** Jede Nacht (oder per Knopf) prüft das Regal, ob die Dateien noch da sind. Verschobene oder
   umbenannte Dateien findet es in den eingeschalteten Freigaben über den SHA-256-Fingerabdruck wieder.
 
@@ -65,13 +66,27 @@ Büro (Ablage pro Kunde auf dessen NAS).
 
 ![Eingang](docs/screenshots/eingang.png)
 
+### Volltextsuche (0.3)
+
+- Das Regal liest den Text von **PDF**, **Word/Excel/PowerPoint** (docx, xlsx, pptx), **LibreOffice** (odt, ods, odp)
+  und **Textdateien** (txt, md, csv …) – im Hintergrund, kurz nach dem Ablegen; geänderte Dateien bei der nächsten
+  Runde. Auch Dateien in den **Eingängen** werden gelesen und gefunden.
+- **Treffer mit Textausschnitt** und markiertem Suchwort im Dropdown; **Enter** öffnet eine Ergebnisseite mit Filtern
+  nach Regal und Schlagwort und den Treffern im Eingang.
+- Mit SQLite-**FTS5** (Wortanfänge, ohne Akzent-Unterschiede) – auf einer NAS ohne FTS5 sucht das Regal einfacher im
+  gespeicherten Text.
+- **PDFs ohne Text** (reine Bild-Scans) werden mit „kein Text“ markiert. Texterkennung (OCR) bringt das Regal ohne
+  native Bibliotheken nicht mit – am Scanner „Durchsuchbares PDF“ einschalten, dann klappt es automatisch.
+
+![Suche](docs/screenshots/suche.png)
+
 | Geöffneter Ordner | Dokumente ablegen |
 |---|---|
 | ![Ordner](docs/screenshots/ordner.png) | ![Ablegen](docs/screenshots/ablegen.png) |
 
-| Suche | Am Handy |
-|---|---|
-| ![Suche](docs/screenshots/suche.png) | ![Handy](docs/screenshots/handy.png) |
+| Am Handy |
+|---|
+| ![Handy](docs/screenshots/handy.png) |
 
 ### Plattform
 
@@ -108,7 +123,7 @@ Ordner aller Benutzer) ist deshalb ausgeschlossen.
 |---|---|---|
 | **0.1** | Regale, Fächer, Ordner, Register, Ablegen aus Freigaben, Vorschau, Schlagworte, Suche, Rechte aus DSM, Wiederfinden | ✅ |
 | **0.2** | **Scanner-Eingang:** Eingangsordner, Einsortieren per Ziehen auf den Ordnerrücken, Verschieben in den **Zielordner** von Ordner/Register, Dateiname-Vorschlag | ✅ |
-| **0.3** | **Volltextsuche** in PDFs (Text mit pypdf, Index in SQLite FTS5) | geplant |
+| **0.3** | **Volltextsuche** in PDF, Office und Textdateien (auch im Eingang), Treffer mit Ausschnitt, Ergebnisseite | ✅ |
 | **0.4** | **Fristen & Wiedervorlage** (Kündigungsfrist, Ablaufdatum) mit Mail-Erinnerung, Fristen-Übersicht | geplant |
 
 ## Installation auf der Synology
@@ -215,7 +230,8 @@ ORG_DATA_DIR=./data ORG_SHARE_ROOTS=/pfad/zu/testvolume python -m app.main   # h
 Beim ersten Start ohne `ORG_ADMIN_PASSWORD` steht das Admin-Passwort in `data/ERSTES_ADMIN_PASSWORT.txt`.
 Die SPK baut `./synology/build_spk.sh` (lädt die Abhängigkeiten für Python 3.8–3.13 und alle Prozessoren von PyPI).
 
-- **Technik:** Python + FastAPI + SQLite, statisches HTML/CSS/JS ohne Build-Schritt, keine nativen Bibliotheken.
+- **Technik:** Python + FastAPI + SQLite, statisches HTML/CSS/JS ohne Build-Schritt, keine nativen Bibliotheken
+  (PDF-Text mit [pypdf](https://github.com/py-pdf/pypdf), Office per ZIP/XML aus der Standardbibliothek).
   Das Fundament (Anmeldung, DSM-Fenster, Sicherung, Updates) stammt aus [IT-Dokumentation](https://github.com/rinkelzz/it-doku) (MIT).
 - **Datenbank-Migrationen** über `PRAGMA user_version` in `app/db.py`: Neue Tabellen und Spalten kommen immer als
   neuer, nummerierter Schritt dazu; jeder Schritt läuft in einer eigenen Transaktion. 
@@ -241,7 +257,9 @@ The user interface is German.
   sign-on, nightly backups, updates through Package Center, audit log.
 - 0.2: scanner inbox – watched folders, drag a file onto a binder spine, it is moved into the binder's (or tab's)
   target folder with a suggested file name; never overwrites, requires DSM write permission on source and target.
-- Planned: 0.3 full-text search in PDFs, 0.4 deadlines and follow-ups with e-mail reminders.
+- 0.3: full-text search in PDF (pypdf), Office (docx/xlsx/pptx, odt/ods/odp) and text files, including inbox files;
+  highlighted snippets, results page with filters; SQLite FTS5 with a LIKE fallback; image-only PDFs are flagged.
+- Planned: 0.4 deadlines and follow-ups with e-mail reminders.
 
 Install: download the `.spk` from [Releases](https://github.com/rinkelzz/ordner-regal/releases) →
 Package Center → Manual Install, then grant the system user `ordnerregal` access to your shared folders.

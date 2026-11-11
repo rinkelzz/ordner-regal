@@ -181,7 +181,7 @@ def test_migration_from_01(tmp_path):
         conn.close()
         dbmod.init_db()
         c = connect()
-        assert c.execute("PRAGMA user_version").fetchone()[0] == dbmod.SCHEMA_VERSION == 3
+        assert c.execute("PRAGMA user_version").fetchone()[0] == dbmod.SCHEMA_VERSION >= 3
         assert c.execute("SELECT name FROM shelves").fetchone()["name"] == "Alt"
         assert "target_share" in {r[1] for r in c.execute("PRAGMA table_info(binders)")}
         c.close()

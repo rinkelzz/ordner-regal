@@ -1,6 +1,7 @@
 "use strict";
+/* global E */
 // Ordner-Regal 0.2: Scanner-Eingang – neue Dateien ansehen und einsortieren, Zielordner wählen.
-const E = { items: [], sources: [], sel: 0, source: "", shelfId: null, shelf: null, binderId: null, binder: null, nameTouched: false, count: 0 };
+window.E = { items: [], sources: [], sel: 0, source: "", shelfId: null, shelf: null, binderId: null, binder: null, nameTouched: false, count: 0 };
 
 // ---------- Zähler im Reiter ----------
 async function inboxCount() {
@@ -74,6 +75,7 @@ async function inboxShow() {
   try {
     const r = await api("inbox" + (E.source ? `?source_id=${E.source}` : ""));
     E.items = r.items; E.sources = r.sources;
+    if (E.want) { const i = E.items.findIndex(x => `${x.share}/${x.path}` === E.want); if (i >= 0) { E.sel = i; E.nameTouched = false; } E.want = null; }
     if (E.sel >= E.items.length) E.sel = Math.max(0, E.items.length - 1);
     if (!R.shelves.length) await loadShelves();
     if (!E.shelfId || !R.shelves.some(s => s.id === E.shelfId)) E.shelfId = (R.shelves.find(s => s.right === "edit") || R.shelves[0] || {}).id || null;

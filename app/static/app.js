@@ -172,6 +172,7 @@ async function loadAdmin() {
   jobs.push(initAudit().catch(e => { $("alErr").textContent = e.message; }));
   if (window.loadSharesAdmin) jobs.push(loadSharesAdmin().catch(e => { $("shErr").textContent = e.message; }));
   if (window.loadInboxSources) jobs.push(loadInboxSources().catch(e => { $("inErr").textContent = e.message; }));
+  if (window.loadFulltextAdmin) jobs.push(loadFulltextAdmin().catch(e => { $("ftErr").textContent = e.message; }));
   jobs.push(loadProxy().catch(e => { $("pxErr").textContent = e.message; }));
   await Promise.all(jobs);
 }

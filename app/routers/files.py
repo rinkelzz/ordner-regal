@@ -124,6 +124,22 @@ def toggle_share(name: str, data: ShareIn, admin=Depends(admin_user), conn: sqli
     return admin_shares(admin, conn)
 
 
+@router.get("/admin/fulltext")
+def fulltext_stats(admin=Depends(admin_user), conn: sqlite3.Connection = Depends(get_db)):
+    from .. import fulltext
+    return fulltext.stats(conn)
+
+
+@router.post("/admin/fulltext/reindex")
+def fulltext_reindex(admin=Depends(admin_user), conn: sqlite3.Connection = Depends(get_db)):
+    """Alle Texte neu lesen (läuft im Hintergrund)."""
+    from .. import fulltext
+    fulltext.reindex_all(conn)
+    fulltext.kick()
+    audit(conn, admin["id"], "fulltext_reindex", "", "Volltext wird neu gelesen")
+    return fulltext.stats(conn)
+
+
 @router.post("/admin/filecheck")
 def run_filecheck(admin=Depends(admin_user), conn: sqlite3.Connection = Depends(get_db)):
     r = filecheck.check(conn)

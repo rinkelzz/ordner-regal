@@ -118,7 +118,8 @@ def doc_out(conn: sqlite3.Connection, row, tags: Optional[Dict[int, list]] = Non
     name = row["relpath"].rsplit("/", 1)[-1]
     return {"id": row["id"], "title": row["title"], "doc_date": row["doc_date"], "notes": row["notes"],
             "share": row["share"], "path": row["relpath"], "filename": name, "size": row["size"], "mime": row["mime"],
-            "missing": bool(row["missing_since"]), "tags": t, "updated_at": row["updated_at"] or row["created_at"]}
+            "missing": bool(row["missing_since"]), "tags": t, "updated_at": row["updated_at"] or row["created_at"],
+            "text_status": row["text_status"] if "text_status" in row.keys() else None}
 
 
 def doc_tags(conn: sqlite3.Connection, doc_ids: List[int]) -> Dict[int, list]:
@@ -132,7 +133,7 @@ def doc_tags(conn: sqlite3.Connection, doc_ids: List[int]) -> Dict[int, list]:
     return out
 
 
-DOC_SELECT = ("SELECT d.*, f.share, f.relpath, f.size, f.mime, f.missing_since FROM documents d JOIN files f ON f.id = d.file_id")
+DOC_SELECT = ("SELECT d.*, f.share, f.relpath, f.size, f.mime, f.missing_since, f.text_status FROM documents d JOIN files f ON f.id = d.file_id")
 
 
 def binder_detail(conn: sqlite3.Connection, user, binder_id: int) -> dict:

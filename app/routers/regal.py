@@ -369,6 +369,9 @@ def file_docs(tab_id: int, data: FileIn, user=Depends(current_user), conn: sqlit
         audit(conn, user["id"], "doc_filed", f"doc:{doc_id}", f"{f['share']}/{f['relpath']} → tab:{tab_id}")
         added += 1
     binder_id = conn.execute("SELECT binder_id FROM tabs WHERE id = ?", (tab_id,)).fetchone()[0]
+    if added:
+        from .. import fulltext
+        fulltext.kick()
     return {"added": added, "already": already, "binder": regal.binder_detail(conn, user, binder_id)}
 
 
@@ -480,30 +483,62 @@ def delete_tag(tag_id: int, admin=Depends(admin_user), conn: sqlite3.Connection 
 
 
 @router.get("/search")
-def search(q: str = Query("", max_length=100), tag: Optional[int] = None, limit: int = Query(50, ge=1, le=200),
+def search(q: str = Query("", max_length=100), tag: Optional[int] = None, shelf_id: Optional[int] = None,
+           limit: int = Query(50, ge=1, le=200), inbox_hits: bool = True,
            user=Depends(current_user), conn: sqlite3.Connection = Depends(get_db)):
-    """Suche über Titel, Dateiname, Notiz und Schlagworte – nur in sichtbaren Regalen und erlaubten Freigaben."""
+    """Suche über Titel, Dateiname, Notiz, Schlagworte und den Volltext der Dokumente – nur in sichtbaren Regalen und
+    erlaubten Freigaben. Treffer im Text kommen mit Ausschnitt (Suchwort zwischen \\x02 und \\x03).
+    Dazu Treffer im Eingang (Dateiname oder Text), wenn der Benutzer den Eingang sehen darf."""
+    from .. import fulltext, inbox
     access = shares.user_access(conn, user)
-    cond, args = regal.visible_doc_filter(access)
-    sql = regal.DOC_SELECT + " WHERE " + cond
-    words = [w for w in q.strip().split() if w][:6]
+    cond, cargs = regal.visible_doc_filter(access)
+    words = fulltext.words_of(q)
+    if not words and not tag:
+        return {"results": [], "inbox": [], "total": 0}
+    tag_sql = " AND EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id AND dt.tag_id = ?)" if tag else ""
+    tag_args = [tag] if tag else []
+    # 1. Titel, Dateiname, Notiz, Schlagworte
+    sql, args = regal.DOC_SELECT + " WHERE " + cond + tag_sql, list(cargs) + tag_args
     for w in words:
-        like = f"%{w}%"
         sql += (" AND (d.title LIKE ? OR f.relpath LIKE ? OR d.notes LIKE ? OR EXISTS (SELECT 1 FROM document_tags dt "
                 "JOIN tags t ON t.id = dt.tag_id WHERE dt.document_id = d.id AND t.name LIKE ?))")
-        args += [like] * 4
-    if tag:
-        sql += " AND EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id AND dt.tag_id = ?)"
-        args.append(tag)
-    if not words and not tag:
-        return {"results": []}
-    rows = conn.execute(sql + " ORDER BY COALESCE(d.updated_at, d.created_at) DESC LIMIT ?", args + [limit * 3]).fetchall()
-    tags = regal.doc_tags(conn, [r["id"] for r in rows])
+        args += [f"%{w}%"] * 4
+    meta = conn.execute(sql + " ORDER BY COALESCE(d.updated_at, d.created_at) DESC LIMIT 500", args).fetchall()
+    # 2. Volltext
+    snippets = fulltext.search_files(conn, words) if words else {}
+    text_rows = []
+    if snippets:
+        ids = list(snippets)[:500]
+        rows = conn.execute(regal.DOC_SELECT + " WHERE " + cond + tag_sql + f" AND d.file_id IN ({','.join('?' * len(ids))})",
+                            list(cargs) + tag_args + ids).fetchall()
+        order = {fid: i for i, fid in enumerate(ids)}
+        text_rows = sorted(rows, key=lambda r: order.get(r["file_id"], 0))
+    seen, merged = set(), []
+    for r in list(meta) + text_rows:
+        if r["id"] not in seen:
+            seen.add(r["id"])
+            merged.append(r)
+    tags = regal.doc_tags(conn, [r["id"] for r in merged[:limit * 3]])
     out = []
-    for r in rows:
+    for r in merged:
         places = regal.doc_places(conn, user, r["id"])
-        if places:
-            out.append({**regal.doc_out(conn, r, tags), "places": places})
+        if shelf_id:
+            places = [p for p in places if p["shelf_id"] == shelf_id]
+        if not places:
+            continue
+        hit = {**regal.doc_out(conn, r, tags), "places": places, "snippet": snippets.get(r["file_id"], "")}
+        out.append(hit)
         if len(out) >= limit:
             break
-    return {"results": out}
+    # 3. Eingang
+    in_hits = []
+    if inbox_hits and words and not tag and not shelf_id:
+        text_in = fulltext.search_inbox(conn, words)
+        for it in inbox.items(conn, user):
+            key = (it["share"].lower(), it["path"])
+            name_hit = all(w.lower() in it["name"].lower() for w in words)
+            if key in text_in or name_hit:
+                in_hits.append({**it, "snippet": text_in.get(key, "")})
+            if len(in_hits) >= 20:
+                break
+    return {"results": out, "inbox": in_hits, "total": len(out)}

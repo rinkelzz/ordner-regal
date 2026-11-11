@@ -2,6 +2,23 @@
 
 Alle nennenswerten Änderungen an diesem Projekt. Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.3.0] – 2026-11-11
+
+### Neu: Volltextsuche
+- **Text lesen** aus PDF (pypdf), Word/Excel/PowerPoint (docx, xlsx, pptx), LibreOffice (odt, ods, odp) und
+  Textdateien – im Hintergrund, kurz nach dem Ablegen; geänderte Dateien werden bei der nächsten Runde neu gelesen.
+  Auch die Dateien in den **Eingängen** werden gelesen und gefunden; beim Einsortieren wird der schon gelesene Text
+  übernommen.
+- **Suche** über Titel, Dateiname, Notiz, Schlagworte **und Text**, mit **Textausschnitt** und markiertem Suchwort.
+  **Enter** öffnet eine Ergebnisseite mit Filtern nach Regal und Schlagwort und den Treffern im Eingang.
+- Index mit **SQLite FTS5** (Wortanfänge, ohne Akzent-Unterschiede); ohne FTS5 sucht das Regal einfacher im Text.
+- **„Kein Text“** bei PDFs ohne Textebene (Bild-Scans), mit Hinweis, wie man am Scanner durchsuchbare PDFs einstellt.
+- **Verwaltung → Freigaben → Volltextsuche:** Stand des Index, „Alles neu lesen“.
+
+### Verbessert
+- Freigaben, die es nicht mehr gibt oder die ausgeschlossen sind (z. B. `homes` aus 0.1.0), verschwinden aus der Liste.
+- Geänderte Dateien bekommen beim Lesen auch neue Größe und neuen Fingerabdruck.
+
 ## [0.2.1] – 2026-11-11
 
 ### Behoben
@@ -57,6 +74,7 @@ Erste Version.
   Zwei-Faktor-Code, vier Designs, Name und Logo, nächtliche Datensicherung, Updates übers Paket-Zentrum,
   Änderungsprotokoll mit CSV-Export, Port änderbar, Testmail über eigenen SMTP-Server.
 
+[0.3.0]: https://github.com/rinkelzz/ordner-regal/releases/tag/v0.3.0
 [0.2.1]: https://github.com/rinkelzz/ordner-regal/releases/tag/v0.2.1
 [0.2.0]: https://github.com/rinkelzz/ordner-regal/releases/tag/v0.2.0
 [0.1.1]: https://github.com/rinkelzz/ordner-regal/releases/tag/v0.1.1

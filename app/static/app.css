@@ -897,3 +897,13 @@ table.docs tr.missing td:first-child b { text-decoration: line-through; opacity:
          padding: 10px 14px; box-shadow: 0 10px 30px rgba(0,0,0,.2); z-index: 70; display: flex; gap: 10px; align-items: center; max-width: 92vw; }
 @media (max-width: 1100px) { .inwrap { grid-template-columns: 260px minmax(0, 1fr); } .insort { grid-column: 1 / -1; } }
 @media (max-width: 760px) { .inwrap { grid-template-columns: 1fr; } .inprev .pview { height: 50vh; } }
+
+/* ===================== Volltext (0.3) ===================== */
+.sres .snip { display: block; font-size: 12px; color: var(--muted); margin-top: 3px; line-height: 1.4; }
+.sres mark { background: #fefcbf; color: inherit; padding: 0 1px; border-radius: 2px; }
+html.dark .sres mark, [data-theme="dark"] .sres mark { background: #744210; }
+.sres .allhits { text-align: center; color: var(--accent); font-weight: 600; }
+.sres .allhits small { display: inline; margin-left: 6px; }
+.sresPage { position: static !important; width: auto !important; max-height: none !important; padding: 6px; }
+.sresPage .hit { padding: 10px 12px; }
+.sresPage .snip { font-size: 13px; }

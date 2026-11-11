@@ -70,10 +70,17 @@ def discover() -> Dict[str, Path]:
 def sync(conn: sqlite3.Connection) -> None:
     """Gefundene Freigaben in die Datenbank übernehmen (Schalter „im Regal“ bleibt erhalten)."""
     now = now_utc_str()
-    for name, path in discover().items():
+    found = discover()
+    for name, path in found.items():
         conn.execute("INSERT INTO shares(name, path, enabled, seen_at, created_at) VALUES (?, ?, 0, ?, ?) "
                      "ON CONFLICT(name) DO UPDATE SET path = excluded.path, seen_at = excluded.seen_at",
                      (name, str(path), now, now))
+    # Nicht mehr gefundene oder inzwischen ausgeschlossene Freigaben (z. B. „homes“) entfernen – aber nur, wenn
+    # sie nicht eingeschaltet sind und nichts im Regal darauf verweist
+    names = {n.lower() for n in found}
+    for r in conn.execute("SELECT name FROM shares WHERE enabled = 0").fetchall():
+        if r["name"].lower() not in names and not conn.execute("SELECT 1 FROM files WHERE share = ? LIMIT 1", (r["name"],)).fetchone():
+            conn.execute("DELETE FROM shares WHERE name = ?", (r["name"],))
 
 
 def status(path: Path) -> Dict[str, bool]:

@@ -118,6 +118,10 @@ def file_from_inbox(data: InboxFileIn, user=Depends(current_user), conn: sqlite3
         f = regal.get_or_create_file(conn, share, rel)
     except shares.ShareError as e:
         raise HTTPException(e.status, str(e))
+    from .. import fulltext
+    old_share, old_rel = (moved_from.split("/", 1) if moved_from else (share, rel))
+    if not fulltext.take_over_inbox_text(conn, old_share, old_rel, f["size"], f["id"], f["mtime"]):
+        fulltext.kick()
     title = (data.title or "").strip() or regal.title_from_name(f["relpath"].rsplit("/", 1)[-1])
     doc_id = conn.execute("INSERT INTO documents(file_id, title, doc_date, created_by, created_at) VALUES (?, ?, ?, ?, ?)",
                           (f["id"], title, data.doc_date.isoformat() if data.doc_date else None, user["id"], now_utc_str())).lastrowid

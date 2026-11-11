@@ -384,6 +384,9 @@ async function showDoc() {
     <dl class="meta"><dt>Titel</dt><dd><b>${esc(d.title)}</b></dd><dt>Datum</dt><dd>${deDate(d.doc_date) || "–"}</dd>
       <dt>Datei</dt><dd>${esc(d.filename)}${d.missing ? ' <span class="tag warn">fehlt</span>' : ""}</dd><dt>Freigabe</dt><dd>/${esc(d.share)}/${esc(d.path.split("/").slice(0, -1).join("/"))}</dd>
       <dt>Größe</dt><dd>${fmtBytes(d.size)}</dd>
+      <dt>Volltext</dt><dd>${d.text_status === "ok" ? "✔ durchsuchbar" : d.text_status === "empty"
+        ? '<span class="tag warn" title="PDF ohne Textebene">kein Text</span> <span class="muted small">Bild-Scan – nur über Titel und Schlagworte auffindbar</span>'
+        : d.text_status === null ? '<span class="muted">wird gelesen …</span>' : '<span class="muted">' + ({ unsupported: "Dateiart ohne Volltext", toolarge: "zu groß", error: "nicht lesbar" }[d.text_status] || "–") + "</span>"}</dd>
       ${d.tags.length ? `<dt>Schlagworte</dt><dd>${d.tags.map(x => `<span class="dtag">${esc(x.name)}</span>`).join("")}</dd>` : ""}
       ${d.notes ? `<dt>Notiz</dt><dd style="white-space:pre-wrap">${esc(d.notes)}</dd>` : ""}
       <dt>Liegt in</dt><dd class="places">${d.places.map(p => `<a data-go="${p.binder_id}">${esc(p.shelf)} › ${esc(p.binder)} › ${esc(p.tab)}</a>`).join("<br>")}</dd></dl>
@@ -530,25 +533,39 @@ function peek(share, path, mime) {
 // ---------- Suche ----------
 let searchTimer = null;
 $("gq").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(runSearch, 220); });
-$("gq").addEventListener("keydown", (e) => { if (e.key === "Escape") { $("gq").value = ""; $("gres").classList.add("hidden"); } });
+$("gq").addEventListener("keydown", (e) => {
+  if (e.key === "Escape") { $("gq").value = ""; $("gres").classList.add("hidden"); }
+  if (e.key === "Enter" && $("gq").value.trim().length >= 2) { $("gres").classList.add("hidden"); showSearchPage($("gq").value.trim()); }
+});
 document.addEventListener("keydown", (e) => {
   if (e.key === "/" && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && $("sheet").classList.contains("hidden")) { e.preventDefault(); $("gq").focus(); }
 });
 document.addEventListener("click", (e) => { if (!e.target.closest(".hsearch")) $("gres").classList.add("hidden"); });
+// Ausschnitt mit markierten Suchwörtern (\x02 … \x03 vom Server)
+const markSnip = (s) => esc(s || "").replace(/\x02/g, "<mark>").replace(/\x03/g, "</mark>");
 async function runSearch() {
   const q = $("gq").value.trim();
   if (q.length < 2) { $("gres").classList.add("hidden"); return; }
   try {
-    const r = await api(`search?q=${encodeURIComponent(q)}&limit=20`);
-    $("gres").innerHTML = r.results.length ? r.results.map(hitHtml).join("") : '<div class="muted small" style="padding:10px">Nichts gefunden.</div>';
+    const r = await api(`search?q=${encodeURIComponent(q)}&limit=8`);
+    $("gres").innerHTML = (r.results.length ? r.results.map(hitHtml).join("") : "") +
+      (r.inbox.length ? `<h5>Im Eingang</h5>` + r.inbox.slice(0, 3).map(inHitHtml).join("") : "") +
+      (!r.results.length && !r.inbox.length ? '<div class="muted small" style="padding:10px">Nichts gefunden.</div>' : "") +
+      `<button class="hit allhits" data-all>Alle Treffer anzeigen <small>Enter</small></button>`;
     $("gres").classList.remove("hidden");
     bindHits($("gres"));
+    $("gres").querySelector("[data-all]").onclick = () => { $("gres").classList.add("hidden"); showSearchPage(q); };
   } catch (e) { /* egal */ }
 }
 function hitHtml(d) {
   const p = d.places[0];
   return `<button class="hit" data-hb="${p.binder_id}" data-hd="${d.id}">${icoFor(d.mime, d.filename)}<b>${esc(d.title)}</b>
-    <small>${esc(p.shelf)} › ${esc(p.binder)} › ${esc(p.tab)}${d.places.length > 1 ? ` (+${d.places.length - 1})` : ""} · ${d.tags.map(t => esc(t.name)).join(", ")}</small></button>`;
+    <small>${esc(p.shelf)} › ${esc(p.binder)} › ${esc(p.tab)}${d.places.length > 1 ? ` (+${d.places.length - 1})` : ""}${d.tags.length ? " · " + d.tags.map(t => esc(t.name)).join(", ") : ""}</small>
+    ${d.snippet ? `<span class="snip">${markSnip(d.snippet)}</span>` : ""}</button>`;
+}
+function inHitHtml(x) {
+  return `<button class="hit" data-hin="${esc(x.share)}/${esc(x.path)}">${icoFor(x.mime, x.name)}<b>${esc(x.name)}</b>
+    <small>📥 Eingang „${esc(x.source)}“ – noch nicht einsortiert</small>${x.snippet ? `<span class="snip">${markSnip(x.snippet)}</span>` : ""}</button>`;
 }
 function bindHits(root) {
   $$("[data-hb]", root).forEach(b => b.onclick = () => {
@@ -556,6 +573,32 @@ function bindHits(root) {
     if (state.tab !== "regal") showTab("regal", "b" + b.dataset.hb).then(() => openBinder(Number(b.dataset.hb), Number(b.dataset.hd)));
     else openBinder(Number(b.dataset.hb), Number(b.dataset.hd));
   });
+  $$("[data-hin]", root).forEach(b => b.onclick = () => {
+    $("gres").classList.add("hidden");
+    if (window.E) window.E.want = b.dataset.hin;
+    showTab("eingang");
+  });
+}
+async function showSearchPage(q, opts = {}) {
+  if (state.tab !== "regal") await showTab("regal", "");
+  const shelf = opts.shelf || "", tag = opts.tag || "";
+  const p = new URLSearchParams({ q, limit: 200 }); if (shelf) p.set("shelf_id", shelf); if (tag) p.set("tag", tag);
+  const r = await api("search?" + p.toString());
+  R.binder = null; renderShelfList();
+  $("regalMain").innerHTML = `<div class="rtitle"><h2>Suche „${esc(q)}“ <span class="muted small" style="font-weight:400">${r.total} Dokument${r.total === 1 ? "" : "e"}</span></h2>
+      <div class="row"><select data-shelf><option value="">alle Regale</option>${R.shelves.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join("")}</select>
+        <select data-tagf><option value="">alle Schlagworte</option>${R.tags.filter(t => t.docs).map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select>
+        <button data-close>✕ Schließen</button></div></div>
+    <section class="card sres sresPage">${r.results.map(hitHtml).join("") || '<p class="muted">Keine Dokumente gefunden.</p>'}</section>
+    ${r.inbox.length ? `<h3 style="margin:6px 0 0">📥 Im Eingang (noch nicht einsortiert)</h3><section class="card sres sresPage">${r.inbox.map(inHitHtml).join("")}</section>` : ""}
+    <p class="muted small" style="margin:0">Gesucht wird in Titel, Dateiname, Notiz, Schlagworten und im Text von PDF-, Office- und Textdateien.
+      PDFs ohne Textebene (reine Bild-Scans) findet die Suche nur über Titel und Schlagworte.</p>`;
+  const m = $("regalMain");
+  m.querySelector("[data-shelf]").value = shelf; m.querySelector("[data-tagf]").value = tag;
+  m.querySelector("[data-shelf]").onchange = (e) => showSearchPage(q, { shelf: e.target.value, tag });
+  m.querySelector("[data-tagf]").onchange = (e) => showSearchPage(q, { shelf, tag: e.target.value });
+  m.querySelector("[data-close]").onclick = () => { $("gq").value = ""; R.shelfId ? openShelf(R.shelfId) : docShow("regal", ""); };
+  bindHits(m);
 }
 async function showTagResults(tagId) {
   R.tagFilter = R.tagFilter === tagId ? null : tagId;
@@ -565,10 +608,23 @@ async function showTagResults(tagId) {
   const r = await api(`search?tag=${tagId}&limit=200`);
   R.binder = null;
   $("regalMain").innerHTML = `<div class="rtitle"><h2>Schlagwort „${esc(tag ? tag.name : "")}“</h2><button data-close>✕ Filter aufheben</button></div>
-    <section class="card sres" style="position:static;width:auto">${r.results.map(hitHtml).join("") || '<p class="muted">Keine Dokumente.</p>'}</section>`;
+    <section class="card sres sresPage">${r.results.map(hitHtml).join("") || '<p class="muted">Keine Dokumente.</p>'}</section>`;
   $("regalMain").querySelector("[data-close]").onclick = () => showTagResults(tagId);
   bindHits($("regalMain"));
 }
+
+// ---------- Verwaltung: Volltext ----------
+async function loadFulltextAdmin(st) {
+  const r = st || await api("admin/fulltext");
+  $("ftInfo").innerHTML = `<b>${r.ok}</b> Dokumente mit Text · <b>${r.empty}</b> ohne Text (Bild-Scans) · ${r.inbox} im Eingang` +
+    (r.pending ? ` · <span class="tag warn">${r.pending} werden gerade gelesen</span>` : "") + (r.other ? ` · ${r.other} ohne Volltext (Dateiart/zu groß)` : "") +
+    `<br><span class="muted small">Suchindex: ${r.fts ? "SQLite FTS5 (schnell, mit Wortanfängen)" : "einfache Suche (das SQLite dieser NAS kennt kein FTS5)"}</span>`;
+}
+window.loadFulltextAdmin = loadFulltextAdmin;
+$("ftReindex").onclick = async () => {
+  if (!confirm("Alle Texte neu lesen? Das läuft im Hintergrund und kann bei vielen Dokumenten eine Weile dauern.")) return;
+  try { await loadFulltextAdmin(await api("admin/fulltext/reindex", { method: "POST" })); } catch (e) { $("ftErr").textContent = e.message; }
+};
 
 // ---------- Verwaltung: Freigaben ----------
 async function loadSharesAdmin(data) {

@@ -81,6 +81,12 @@ Unterstützt wird jeweils die neueste Version unter [Releases](https://github.co
 - **Auslieferung:** Direkt im Browser angezeigt werden nur PDF, PNG, JPEG, GIF, WebP und reiner Text – alles andere
   (auch HTML und SVG) kommt als Download mit `application/octet-stream`. Immer mit `X-Content-Type-Options: nosniff`,
   außer bei PDF zusätzlich `Content-Security-Policy: sandbox`.
+- **Volltext (ab 0.3):** Der gelesene Text der Dokumente liegt in der Datenbank des Regals – und damit auch in den
+  **Datensicherungen**. Den Sicherungsordner deshalb wie die Dokumente selbst schützen. Treffer zeigt die Suche nur aus
+  Regalen und Freigaben, die der Benutzer sehen darf; Treffer im Eingang nur bei Leserecht auf dessen Freigabe.
+  Office-Dateien werden nicht mit einem XML-Parser gelesen, sondern per regulärem Ausdruck (keine Entitäten, keine
+  externen Verweise); Größen sind begrenzt (Datei 64 MB, entpacktes XML 32/96 MB, Text 1 Mio. Zeichen, 1000 Seiten).
+  Kaputte oder präparierte Dateien führen nur zu „nicht lesbar“.
 - **Rechte am Regal** werden bei jeder Schnittstelle geprüft (auch wenn die Oberfläche Knöpfe ohnehin ausblendet):
   Ansehen reicht nicht zum Ablegen, Umstellen oder Löschen; Regale anlegen und löschen nur mit Vollzugriff.
 
@@ -97,7 +103,7 @@ Unterstützt wird jeweils die neueste Version unter [Releases](https://github.co
 - Das SMTP-Passwort liegt in der Datenbank der App (`/var/packages/ordnerregal/var/`), lesbar nur für
   den Paketbenutzer. Am besten ein eigenes Mail-Konto oder App-Passwort nur für den Versand verwenden.
 - Den freigegebenen Ordner für Sicherungen nicht für alle Benutzer freigeben – die Sicherungen enthalten
-  das Regal (Titel, Pfade, Notizen, Schlagworte) und die Passwort-Hashes.
+  das Regal (Titel, Pfade, Notizen, Schlagworte, ab 0.3 den Volltext der Dokumente) und die Passwort-Hashes.
 
 # Security (English)
 

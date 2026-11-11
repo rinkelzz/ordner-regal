@@ -318,3 +318,13 @@ def test_dsm_proxy_fetches_shares(monkeypatch):
         assert mod.dsm_shares("tok") is None  # ohne DSM-Sitzung nichts
     finally:
         srv.shutdown()
+
+
+def test_stale_shares_removed(nas):
+    """Freigaben, die es nicht mehr gibt oder die ausgeschlossen sind (z. B. „homes“ aus 0.1.0), verschwinden aus der Liste."""
+    conn = connect()
+    conn.execute("INSERT INTO shares(name, path, enabled, created_at) VALUES ('homes', '/volume1/homes', 0, 'x')")
+    conn.close()
+    with TestClient(app, client=("192.168.1.10", 1)) as c:
+        login(c)
+        assert [s["name"] for s in c.get("/api/v1/admin/shares").json()["shares"]] == ["Dokumente", "Privat", "Scans"]
