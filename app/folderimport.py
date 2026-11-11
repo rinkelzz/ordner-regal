@@ -22,10 +22,14 @@ MAX_PER_SYNC = 5000
 ROOT_TAB = "Allgemein"
 
 
-def _walk(root, start_rel: str):
-    """(Register-Name oder None für die oberste Ebene, relativer Pfad) für alle Dateien."""
+def _walk(root, start_rel: str, bad: list):
+    """(Register-Name oder None für die oberste Ebene, relativer Pfad) für alle Dateien.
+    Namen, die kein gültiges UTF-8 sind, landen in „bad“ (lesbar mit Ersatzzeichen) statt im Regal."""
     base = root / start_rel if start_rel else root
     for dirpath, dirnames, filenames in os.walk(base):
+        for n in dirnames + filenames:
+            if shares.bad_name(n):
+                bad.append(os.path.join(dirpath, n).encode("utf-8", "surrogateescape").decode("utf-8", "replace"))
         dirnames[:] = sorted(d for d in dirnames if not shares.hidden(d))
         rel_dir = os.path.relpath(dirpath, base).replace(os.sep, "/")
         rel_dir = "" if rel_dir == "." else rel_dir
@@ -92,7 +96,7 @@ def sync(conn: sqlite3.Connection, binder_id: int, user) -> Dict[str, int]:
         tabs[key] = tid
         return tid
 
-    added = 0
+    added = skipped = 0
     nonlocal_new: list = []
     truncated = False
     # jeder Unterordner der ersten Ebene wird ein Register – auch wenn er (noch) leer ist
@@ -102,7 +106,8 @@ def sync(conn: sqlite3.Connection, binder_id: int, user) -> Dict[str, int]:
                 tab_for(e.name)
     except OSError:
         pass
-    for tab_name, rel in _walk(root, base_rel):
+    bad: list = []
+    for tab_name, rel in _walk(root, base_rel, bad):
         fid = known.get(rel)
         if fid in in_binder:
             continue
@@ -111,7 +116,8 @@ def sync(conn: sqlite3.Connection, binder_id: int, user) -> Dict[str, int]:
             break
         try:
             f = regal.get_or_create_file(conn, share, rel, hash_now=False)  # Fingerabdruck später im Hintergrund
-        except (HTTPException, shares.ShareError, OSError):
+        except (HTTPException, shares.ShareError, OSError, ValueError):
+            skipped += 1
             continue
         if f["id"] in in_binder:
             continue
@@ -132,7 +138,11 @@ def sync(conn: sqlite3.Connection, binder_id: int, user) -> Dict[str, int]:
         audit(conn, user["id"], "binder_synced", f"binder:{binder_id}", f"{added} Dokument(e) aus {share}/{x['source_path']} übernommen")
         from . import fulltext
         fulltext.kick()
-    return {"added": added, "new_tabs": new_tabs, "truncated": truncated}
+    if bad:
+        print(f"[ordnerregal] Abgleich Ordner {binder_id}: {len(bad)} Datei-/Ordnername(n) ohne gültiges UTF-8 übersprungen "
+              f"(bitte in der File Station umbenennen): " + "; ".join(bad[:20]), flush=True)
+    return {"added": added, "new_tabs": new_tabs, "truncated": truncated, "skipped": skipped + len(bad),
+            "bad_names": [b.rsplit("/", 1)[-1] for b in bad[:10]]}
 
 
 def sync_all(conn: sqlite3.Connection) -> Dict[int, dict]:

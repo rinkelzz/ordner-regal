@@ -308,10 +308,10 @@ function binderForm(x) {
     let msg = "";
     if (scan) {
       const r = await api(`binders/${id}/source`, { method: "PATCH", body: { from_target: true } });
-      msg = `Zielordner eingelesen: ${r.result.added} Dokument(e)${r.result.new_tabs ? `, ${r.result.new_tabs} neue Register` : ""}.`;
+      msg = `<span class="ok">Zielordner eingelesen: ${r.result.added} Dokument(e)${r.result.new_tabs ? `, ${r.result.new_tabs} neue Register` : ""}.</span>` + skippedNote(r.result);
     }
     closeSheet(); await loadShelves(); await openBinder(id);
-    if (msg) $("regalErr").innerHTML = `<span class="ok">${esc(msg)}</span>`;
+    if (msg) $("regalErr").innerHTML = msg;
   });
   const del = card.querySelector("[data-del]");
   if (del) del.onclick = busy(card, async () => {
@@ -372,14 +372,14 @@ function renderBinder() {
   on("[data-tedit]", () => tabForm(t));
   on("[data-sync]", async () => {
     try { const r = await api(`binders/${b.id}/sync`, { method: "POST" }); R.binder = r.binder; renderBinder();
-      $("regalErr").innerHTML = `<span class="ok">Abgeglichen: ${r.added} neue Dokument(e)${r.new_tabs ? `, ${r.new_tabs} neue Register` : ""}.</span>`; }
+      $("regalErr").innerHTML = `<span class="ok">Abgeglichen: ${r.added} neue Dokument(e)${r.new_tabs ? `, ${r.new_tabs} neue Register` : ""}.</span>` + skippedNote(r); }
     catch (e) { $("regalErr").textContent = e.message; }
   });
   on("[data-readtarget]", async () => {
     try {
       const r = await api(`binders/${b.id}/source`, { method: "PATCH", body: { from_target: true } });
       R.binder = r; renderBinder();
-      $("regalErr").innerHTML = `<span class="ok">Zielordner eingelesen: ${r.result.added} Dokument(e)${r.result.new_tabs ? `, ${r.result.new_tabs} neue Register` : ""}.</span>`;
+      $("regalErr").innerHTML = `<span class="ok">Zielordner eingelesen: ${r.result.added} Dokument(e)${r.result.new_tabs ? `, ${r.result.new_tabs} neue Register` : ""}.</span>` + skippedNote(r.result);
     } catch (e) { $("regalErr").textContent = e.message; }
   });
   on("[data-synctoggle]", async () => { R.binder = await api(`binders/${b.id}/source`, { method: "PATCH", body: { sync: !b.source.sync } }); renderBinder(); });
@@ -781,6 +781,15 @@ $("shCheck").onclick = async () => {
   } catch (e) { $("shErr").textContent = e.message; $("shCheck").disabled = false; }
 };
 
+// Hinweis zu übersprungenen Dateien (z. B. Dateinamen ohne gültiges UTF-8 aus Cloud-Sync)
+function skippedNote(r) {
+  if (!r || !r.skipped) return "";
+  return ` <span class="tag warn">${r.skipped} übersprungen</span> <span class="muted small">${r.bad_names && r.bad_names.length
+    ? "Dateinamen mit ungültigen Zeichen (z. B. „" + esc(r.bad_names[0]) + "“) – bitte in der File Station umbenennen, dann „Jetzt abgleichen“."
+    : "nicht lesbar"}</span>`;
+}
+window.skippedNote = skippedNote;
+
 // ---------- NAS-Ordner übernehmen ----------
 async function importFolder(start) {
   if (!R.shelves.length) await loadShelves();
@@ -814,7 +823,7 @@ async function importFolder(start) {
     closeSheet(); await loadShelves();
     await openBinder(r.binder.id);
     $("regalErr").innerHTML = `<span class="ok">${r.added} Dokument(e) in ${r.binder.tabs.length} Register übernommen.</span>` +
-      (r.truncated ? ' <span class="muted">Sehr viele Dateien – der Rest kommt beim nächsten Abgleich.</span>' : "");
+      (r.truncated ? ' <span class="muted">Sehr viele Dateien – der Rest kommt beim nächsten Abgleich.</span>' : "") + skippedNote(r);
   });
 }
 window.importFolder = importFolder;

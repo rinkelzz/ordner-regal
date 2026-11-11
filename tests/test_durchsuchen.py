@@ -144,3 +144,30 @@ def test_read_target_folder(nas):
         # Ohne Zielordner geht es nicht
         b2 = c.post("/api/v1/binders", json={"board_id": shelf["boards"][0]["id"], "title": "Leer"}).json()
         assert c.patch(f"/api/v1/binders/{b2['id']}/source", json={"from_target": True}).status_code == 400
+
+
+def test_bad_file_names_are_skipped(nas):
+    """Dateinamen ohne gültiges UTF-8 (z. B. aus Cloud-Sync) führten zu Fehler 500 – jetzt übersprungen und gemeldet."""
+    import os
+    d = nas / "homes" / "tim.rinkel" / "Drive" / "Arbeit"
+    fd = os.open(bytes(d) + b"/Rechnung\xff\xfe.pdf", os.O_CREAT | os.O_WRONLY)
+    os.close(fd)
+    with TestClient(app, client=("192.168.1.10", 1)) as c:
+        login(c)
+        c.patch("/api/v1/admin/shares/homes", json={"enabled": True})
+        shelf = c.post("/api/v1/shelves", json={"name": "Arbeit"}).json()
+        r = c.post("/api/v1/binders/import", json={"board_id": shelf["boards"][0]["id"], "share": "homes", "path": "tim.rinkel/Drive/Arbeit"})
+        assert r.status_code == 201, r.text
+        r = r.json()
+        assert r["added"] == 4 and r["skipped"] == 1 and r["bad_names"][0].startswith("Rechnung")
+        br = c.get("/api/v1/browse", params={"share": "homes", "path": "tim.rinkel/Drive/Arbeit"})
+        assert br.status_code == 200 and [f["name"] for f in br.json()["files"]] == ["Notiz.txt"]
+
+
+def test_unexpected_error_is_readable(nas, monkeypatch):
+    from app.routers import regal as regal_router
+    monkeypatch.setattr(regal_router.regal, "visible_shelves", lambda conn, user: 1 / 0)
+    with TestClient(app, client=("192.168.1.10", 1), raise_server_exceptions=False) as c:
+        login(c)
+        r = c.get("/api/v1/shelves")
+        assert r.status_code == 500 and "ZeroDivisionError" in r.json()["detail"] and "Fehlernummer" in r.json()["detail"]

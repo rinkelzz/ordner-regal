@@ -81,6 +81,18 @@ for r in (auth.router, backup.router, branding.router, settings_router.router, u
     app.include_router(r)
 
 
+@app.exception_handler(Exception)
+async def unexpected_error(request: Request, exc: Exception):
+    """Unerwarteter Fehler: verständliche Meldung statt „Fehler 500“, Einzelheiten ins Protokoll des Pakets."""
+    import traceback
+    import uuid
+    ref = uuid.uuid4().hex[:8]
+    print(f"[ordnerregal] FEHLER {ref} bei {request.method} {request.url.path}:\n"
+          + "".join(traceback.format_exception(type(exc), exc, exc.__traceback__)), flush=True)
+    return JSONResponse({"detail": f"Unerwarteter Fehler ({type(exc).__name__}) – Fehlernummer {ref}. Einzelheiten stehen im "
+                                   "Protokoll des Pakets (Paket-Zentrum → Ordner-Regal → Protokoll)."}, status_code=500)
+
+
 @app.middleware("http")
 async def csrf_guard(request: Request, call_next):
     reason = csrf.blocked(request.method, request.url.path, request.headers)

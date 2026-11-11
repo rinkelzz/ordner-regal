@@ -45,8 +45,18 @@ def volume_roots() -> List[Path]:
     return sorted(p for p in Path("/").glob("volume[0-9]*") if p.is_dir())
 
 
+def bad_name(name: str) -> bool:
+    """Dateiname, der kein gültiges UTF-8 ist (kommt bei Cloud-Sync/Windows-Namen vor) – lässt sich weder speichern
+    noch anzeigen und wird deshalb übersprungen."""
+    try:
+        name.encode("utf-8")
+        return False
+    except UnicodeEncodeError:
+        return True
+
+
 def hidden(name: str) -> bool:
-    return name in HIDDEN_NAMES or name.startswith(HIDDEN_PREFIXES)
+    return name in HIDDEN_NAMES or name.startswith(HIDDEN_PREFIXES) or bad_name(name)
 
 
 def discover() -> Dict[str, Path]:

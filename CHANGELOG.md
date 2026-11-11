@@ -2,6 +2,16 @@
 
 Alle nennenswerten Änderungen an diesem Projekt. Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.5.2] – 2026-11-11
+
+### Behoben
+- **Fehler 500 beim Einlesen/Übernehmen** von Ordnern mit Dateinamen, die kein gültiges UTF-8 sind (kommt bei
+  Cloud-Sync und Windows-Namen vor, z. B. in OneDrive-Ordnern): Solche Dateien werden jetzt übersprungen und gemeldet
+  („n übersprungen – bitte in der File Station umbenennen“), alles andere wird normal übernommen. Auch Datei-Auswahl,
+  Eingang, Freigaben durchsuchen und Dateiprüfung überspringen sie.
+- **Unerwartete Fehler** zeigen statt „Fehler 500“ eine Meldung mit Fehlernummer; die Einzelheiten stehen im Protokoll
+  des Pakets.
+
 ## [0.5.1] – 2026-11-11
 
 ### Neu
@@ -128,6 +138,7 @@ Erste Version.
   Zwei-Faktor-Code, vier Designs, Name und Logo, nächtliche Datensicherung, Updates übers Paket-Zentrum,
   Änderungsprotokoll mit CSV-Export, Port änderbar, Testmail über eigenen SMTP-Server.
 
+[0.5.2]: https://github.com/rinkelzz/ordner-regal/releases/tag/v0.5.2
 [0.5.1]: https://github.com/rinkelzz/ordner-regal/releases/tag/v0.5.1
 [0.5.0]: https://github.com/rinkelzz/ordner-regal/releases/tag/v0.5.0
 [0.4.0]: https://github.com/rinkelzz/ordner-regal/releases/tag/v0.4.0
