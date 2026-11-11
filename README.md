@@ -60,6 +60,8 @@ Büro (Ablage pro Kunde auf dessen NAS).
 - **📂 Aus NAS-Ordner übernehmen:** Einen Ordner wählen (z. B. `homes/tim.rinkel/Drive/Arbeit`) – er wird ein
   Regal-Ordner, **Unterordner werden Register**, Dateien werden Dokumente (Dateien direkt im Ordner landen in
   „Allgemein“). Die Dateien bleiben, wo sie sind.
+- **Zielordner einlesen:** Auch bei einem von Hand angelegten Ordner: Zielordner setzen und „📂 Inhalt einlesen“ –
+  vorhandene Register mit gleichem Namen werden genutzt, für weitere Unterordner entstehen neue Register.
 - **Verknüpft halten:** Neue Dateien und Unterordner kommen nachts und per „↻ Jetzt abgleichen“ dazu. Von Hand
   umsortierte Dokumente bleiben, wo sie sind; die Verknüpfung lässt sich jederzeit lösen.
 

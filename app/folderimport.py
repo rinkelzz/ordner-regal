@@ -1,7 +1,7 @@
 """NAS-Ordner als Regal-Ordner übernehmen – und verknüpft halten.
 
 - Der gewählte NAS-Ordner wird ein Regal-Ordner (Titel = Ordnername).
-- Jeder Unterordner der ersten Ebene wird ein Register; Dateien direkt im Ordner landen im Register „Allgemein“.
+- Jeder Unterordner der ersten Ebene wird ein Register (auch leere); Dateien direkt im Ordner landen im Register „Allgemein“.
   Dateien in tieferen Unterordnern kommen in das Register ihres Unterordners der ersten Ebene.
 - Jede Datei wird ein Dokument (die Datei bleibt, wo sie ist).
 - Verknüpft: Beim Abgleich (nachts und per Knopf) kommen neue Dateien und neue Unterordner dazu. Entfernte Dateien
@@ -51,8 +51,22 @@ def sync(conn: sqlite3.Connection, binder_id: int, user) -> Dict[str, int]:
         raise HTTPException(e.status, str(e))
     if not base.is_dir():
         raise HTTPException(404, "Den NAS-Ordner gibt es nicht mehr")
-    tabs = {(r["source_dir"] or "").lower(): r["id"] for r in conn.execute(
-        "SELECT id, source_dir FROM tabs WHERE binder_id = ? AND source_dir IS NOT NULL", (binder_id,))}
+    base_rel = shares.clean_relpath(x["source_path"] or "")
+    # Register zuordnen: 1. schon verknüpft (source_dir), 2. eigener Zielordner = Unterordner, 3. gleicher Name.
+    # So nutzt der Abgleich vorhandene Register, statt sie doppelt anzulegen.
+    all_tabs = conn.execute("SELECT * FROM tabs WHERE binder_id = ? ORDER BY sort, id", (binder_id,)).fetchall()
+    tabs = {(r["source_dir"] or "").lower(): r["id"] for r in all_tabs if r["source_dir"] is not None}
+    by_target = {}
+    for r in all_tabs:
+        if r["source_dir"] is None and r["target_share"] and r["target_share"].lower() == share.lower():
+            tp = shares.clean_relpath(r["target_path"] or "")
+            if tp == base_rel:
+                by_target.setdefault("", r["id"])
+            elif tp.lower().startswith((base_rel + "/").lower() if base_rel else ""):
+                sub = tp[len(base_rel) + 1:] if base_rel else tp
+                if sub and "/" not in sub:
+                    by_target.setdefault(sub.lower(), r["id"])
+    by_name = {r["name"].lower(): r["id"] for r in all_tabs if r["source_dir"] is None}
     in_binder = {r["file_id"] for r in conn.execute(
         "SELECT d.file_id FROM filings fi JOIN tabs t ON t.id = fi.tab_id JOIN documents d ON d.id = fi.document_id "
         "WHERE t.binder_id = ?", (binder_id,))}
@@ -62,16 +76,33 @@ def sync(conn: sqlite3.Connection, binder_id: int, user) -> Dict[str, int]:
         key = (name or "").lower()
         if key in tabs:
             return tabs[key]
-        sort = conn.execute("SELECT COALESCE(MAX(sort), -1) + 1 FROM tabs WHERE binder_id = ?", (binder_id,)).fetchone()[0]
-        tid = conn.execute("INSERT INTO tabs(binder_id, name, sort, source_dir) VALUES (?, ?, ?, ?)",
-                           (binder_id, (name or ROOT_TAB)[:40], sort if name else -1, name or "")).lastrowid
+        tid = by_target.get(key) or by_name.get(key if name else ROOT_TAB.lower())
+        if tid:  # vorhandenes Register übernehmen und verknüpfen
+            conn.execute("UPDATE tabs SET source_dir = ? WHERE id = ?", (name or "", tid))
+            if name:
+                conn.execute("UPDATE tabs SET target_share = ?, target_path = ? WHERE id = ? AND target_share IS NULL",
+                             (share, f"{base_rel}/{name}".strip("/"), tid))
+        else:
+            sort = conn.execute("SELECT COALESCE(MAX(sort), -1) + 1 FROM tabs WHERE binder_id = ?", (binder_id,)).fetchone()[0]
+            # neues Register; sein Zielordner ist der Unterordner (Einsortieren aus dem Eingang landet dann dort)
+            tid = conn.execute("INSERT INTO tabs(binder_id, name, sort, source_dir, target_share, target_path) VALUES (?, ?, ?, ?, ?, ?)",
+                               (binder_id, (name or ROOT_TAB)[:40], sort if name else -1, name or "",
+                                share if name else None, f"{base_rel}/{name}".strip("/") if name else None)).lastrowid
+            nonlocal_new.append(tid)
         tabs[key] = tid
         return tid
 
-    added = new_tabs = 0
-    before_tabs = len(tabs)
+    added = 0
+    nonlocal_new: list = []
     truncated = False
-    for tab_name, rel in _walk(root, shares.clean_relpath(x["source_path"] or "")):
+    # jeder Unterordner der ersten Ebene wird ein Register – auch wenn er (noch) leer ist
+    try:
+        for e in sorted(os.scandir(base), key=lambda e: e.name.lower()):
+            if not shares.hidden(e.name) and e.is_dir():
+                tab_for(e.name)
+    except OSError:
+        pass
+    for tab_name, rel in _walk(root, base_rel):
         fid = known.get(rel)
         if fid in in_binder:
             continue
@@ -92,10 +123,9 @@ def sync(conn: sqlite3.Connection, binder_id: int, user) -> Dict[str, int]:
         conn.execute("INSERT OR IGNORE INTO filings(document_id, tab_id, sort, filed_at) VALUES (?, ?, 0, ?)", (doc_id, tid, now_utc_str()))
         in_binder.add(f["id"])
         added += 1
-    new_tabs = len(tabs) - before_tabs
-    # Register „Allgemein“ (falls angelegt) nach vorn, dann alphabetisch
-    for i, r in enumerate(conn.execute("SELECT id FROM tabs WHERE binder_id = ? ORDER BY CASE WHEN source_dir = '' THEN 0 ELSE 1 END, "
-                                       "source_dir IS NULL, name COLLATE NOCASE", (binder_id,)).fetchall()):
+    new_tabs = len(nonlocal_new)
+    # neue Register stehen hinten (in Ordner-Reihenfolge), „Allgemein“ vorn; vorhandene behalten ihre Reihenfolge
+    for i, r in enumerate(conn.execute("SELECT id FROM tabs WHERE binder_id = ? ORDER BY sort, id", (binder_id,)).fetchall()):
         conn.execute("UPDATE tabs SET sort = ? WHERE id = ?", (i, r["id"]))
     conn.execute("UPDATE binders SET source_synced_at = ? WHERE id = ?", (now_utc_str(), binder_id))
     if added:

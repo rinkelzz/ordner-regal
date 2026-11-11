@@ -309,11 +309,24 @@ def sync_folder(binder_id: int, user=Depends(current_user), conn: sqlite3.Connec
 class SourceIn(BaseModel):
     sync: Optional[bool] = None
     unlink: bool = False
+    from_target: bool = Field(False, description="Zielordner einlesen: Unterordner → Register, Dateien → Dokumente, verknüpft halten")
 
 
 @router.patch("/binders/{binder_id}/source")
 def update_source(binder_id: int, data: SourceIn, user=Depends(current_user), conn: sqlite3.Connection = Depends(get_db)):
     need_shelf(conn, user, shelf_of(conn, "binder", binder_id), edit=True)
+    if data.from_target:
+        from .. import folderimport
+        x = conn.execute("SELECT target_share, target_path FROM binders WHERE id = ?", (binder_id,)).fetchone()
+        if not x["target_share"]:
+            raise HTTPException(400, "Der Ordner hat noch keinen Zielordner")
+        if not shares.allowed(conn, user, x["target_share"], x["target_path"] or ""):
+            raise HTTPException(403, "Kein Zugriff auf den Zielordner")
+        conn.execute("UPDATE binders SET source_share = ?, source_path = ?, source_sync = 1, source_user_id = ? WHERE id = ?",
+                     (x["target_share"], x["target_path"] or "", user["id"], binder_id))
+        audit(conn, user["id"], "binder_updated", f"binder:{binder_id}", f"Zielordner {x['target_share']}/{x['target_path']} eingelesen und verknüpft")
+        r = folderimport.sync(conn, binder_id, user)
+        return {**regal.binder_detail(conn, user, binder_id), "result": r}
     if data.unlink:
         conn.execute("UPDATE binders SET source_share = NULL, source_path = NULL, source_sync = 0 WHERE id = ?", (binder_id,))
         audit(conn, user["id"], "binder_updated", f"binder:{binder_id}", "Verknüpfung mit NAS-Ordner gelöst (Dokumente bleiben)")

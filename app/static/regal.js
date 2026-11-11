@@ -274,6 +274,8 @@ function binderForm(x) {
       ${boards ? `<label>Fach <select data-k="board">${boards.map(b => `<option value="${b.id}">${esc(b.name || "Fach")}</option>`).join("")}</select></label>` : ""}
       <label>Breite <select data-k="width"><option value="1">schmal</option><option value="2">normal</option><option value="3">breit</option></select></label>
       <label class="span2">Zielordner für einsortierte Dateien <span class="row"><input data-k="target" readonly placeholder="noch keiner – beim Einsortieren fragt das Regal nach" style="flex:1" value="${esc(x && x.target ? targetText(x.target) : "")}"><button type="button" data-pick>Wählen …</button></span></label>
+      ${x && x.source ? "" : `<label class="inline span2 ${x && x.target ? "" : "hidden"}" data-scanrow><input type="checkbox" data-k="scan">
+        Inhalt des Zielordners einlesen: Unterordner werden Register, Dateien werden Dokumente – und verknüpft halten (neue Dateien kommen automatisch dazu)</label>`}
       <label class="span2">Farbe ${swatchHtml(COLORS, x ? x.color : COLORS[5], "c")}</label>
       ${x ? "" : '<label class="span2">Register (eins pro Zeile, leer = „Allgemein“) <textarea data-k="tabs" rows="3" placeholder="Kfz&#10;Hausrat&#10;Haftpflicht"></textarea></label>'}
       <label class="span2">Notiz <textarea data-k="notes" rows="2" maxlength="2000">${esc(x ? x.notes : "")}</textarea></label>
@@ -289,15 +291,27 @@ function binderForm(x) {
     if (t === null) return;
     target = t || null; targetChanged = true;
     card.querySelector("[data-k=target]").value = target ? targetText(target) : "";
+    const row = card.querySelector("[data-scanrow]");
+    if (row) { row.classList.toggle("hidden", !target); if (target) row.querySelector("input").checked = true; }
   };
   const v = (k) => { const el = card.querySelector(`[data-k=${k}]`); return el ? el.value : ""; };
   card.querySelector("[data-save]").onclick = busy(card, async () => {
     const body = { title: v("title").trim(), color: color(), width: Number(v("width")), notes: v("notes") };
     if (targetChanged || (!x && target)) { body.target_share = target ? target.share : ""; body.target_path = target ? target.path : ""; }
-    if (x) { R.binder = await api(`binders/${x.id}`, { method: "PATCH", body }); closeSheet(); renderBinder(); return; }
-    body.board_id = Number(v("board")); body.tabs = v("tabs").split("\n").map(t => t.trim()).filter(Boolean);
-    const b = await api("binders", { method: "POST", body });
-    closeSheet(); await loadShelves(); await openBinder(b.id);
+    const scan = !!(target && card.querySelector("[data-k=scan]") && card.querySelector("[data-k=scan]").checked);
+    let id;
+    if (x) { R.binder = await api(`binders/${x.id}`, { method: "PATCH", body }); id = x.id; }
+    else {
+      body.board_id = Number(v("board")); body.tabs = v("tabs").split("\n").map(t => t.trim()).filter(Boolean);
+      id = (await api("binders", { method: "POST", body })).id;
+    }
+    let msg = "";
+    if (scan) {
+      const r = await api(`binders/${id}/source`, { method: "PATCH", body: { from_target: true } });
+      msg = `Zielordner eingelesen: ${r.result.added} Dokument(e)${r.result.new_tabs ? `, ${r.result.new_tabs} neue Register` : ""}.`;
+    }
+    closeSheet(); await loadShelves(); await openBinder(id);
+    if (msg) $("regalErr").innerHTML = `<span class="ok">${esc(msg)}</span>`;
   });
   const del = card.querySelector("[data-del]");
   if (del) del.onclick = busy(card, async () => {
@@ -330,6 +344,8 @@ function renderBinder() {
         <div class="crumb"><a data-shelf>Regal ${esc(b.shelf.name)}</a> › <a data-back2>${esc(b.title)}</a> › <b>${esc(t.name)}</b>
           ${edit ? `<button class="mini" data-tedit style="margin-left:6px">Register bearbeiten</button>` : ""}</div>
         ${b.notes ? `<p class="bnote">${esc(b.notes)}</p>` : ""}
+        ${!b.source && b.target && edit ? `<div class="srcinfo">📁 Zielordner <b>${esc(targetText(b.target))}</b>
+          <button class="mini" data-readtarget title="Unterordner werden Register, Dateien werden Dokumente – verknüpft">📂 Inhalt einlesen</button></div>` : ""}
         ${b.source ? `<div class="srcinfo">📂 Verknüpft mit <b>/${esc(b.source.share)}${b.source.path ? "/" + esc(b.source.path) : ""}</b>
           <span class="muted">· ${b.source.sync ? "Abgleich an" : "Abgleich aus"}${b.source.synced_at ? " · zuletzt " + fmtDT(b.source.synced_at) : ""}</span>
           ${edit ? `<span class="row"><button class="mini" data-sync>↻ Jetzt abgleichen</button>
@@ -358,6 +374,13 @@ function renderBinder() {
     try { const r = await api(`binders/${b.id}/sync`, { method: "POST" }); R.binder = r.binder; renderBinder();
       $("regalErr").innerHTML = `<span class="ok">Abgeglichen: ${r.added} neue Dokument(e)${r.new_tabs ? `, ${r.new_tabs} neue Register` : ""}.</span>`; }
     catch (e) { $("regalErr").textContent = e.message; }
+  });
+  on("[data-readtarget]", async () => {
+    try {
+      const r = await api(`binders/${b.id}/source`, { method: "PATCH", body: { from_target: true } });
+      R.binder = r; renderBinder();
+      $("regalErr").innerHTML = `<span class="ok">Zielordner eingelesen: ${r.result.added} Dokument(e)${r.result.new_tabs ? `, ${r.result.new_tabs} neue Register` : ""}.</span>`;
+    } catch (e) { $("regalErr").textContent = e.message; }
   });
   on("[data-synctoggle]", async () => { R.binder = await api(`binders/${b.id}/source`, { method: "PATCH", body: { sync: !b.source.sync } }); renderBinder(); });
   on("[data-unlink]", async () => {

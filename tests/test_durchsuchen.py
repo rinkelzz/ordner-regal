@@ -16,6 +16,7 @@ def nas(tmp_path, monkeypatch):
     d = vol / "homes" / "tim.rinkel" / "Drive" / "Arbeit"
     (d / "Rechnungen" / "2025").mkdir(parents=True)
     (d / "Verträge").mkdir()
+    (d / "Leer").mkdir()
     (d / "Notiz.txt").write_text("Oberste Ebene")
     (d / "Rechnungen" / "R1.pdf").write_bytes(PDF)
     (d / "Rechnungen" / "2025" / "R2.pdf").write_bytes(PDF + b"2")
@@ -77,8 +78,8 @@ def test_import_and_sync(nas):
         b = r["binder"]
         assert r["added"] == 4 and b["title"] == "Arbeit" and b["source"]["path"] == "tim.rinkel/Drive/Arbeit" and b["source"]["sync"]
         tabs = {t["name"]: sorted(d["filename"] for d in t["docs"]) for t in b["tabs"]}
-        assert list(tabs) == ["Allgemein", "Rechnungen", "Verträge"]
-        assert tabs == {"Allgemein": ["Notiz.txt"], "Rechnungen": ["R1.pdf", "R2.pdf"], "Verträge": ["Miete.pdf"]}
+        assert list(tabs) == ["Allgemein", "Leer", "Rechnungen", "Verträge"]
+        assert tabs == {"Allgemein": ["Notiz.txt"], "Leer": [], "Rechnungen": ["R1.pdf", "R2.pdf"], "Verträge": ["Miete.pdf"]}
         # neue Datei + neuer Unterordner → Abgleich
         d = nas / "homes" / "tim.rinkel" / "Drive" / "Arbeit"
         (d / "Steuer").mkdir()
@@ -86,7 +87,7 @@ def test_import_and_sync(nas):
         (d / "Verträge" / "Strom.pdf").write_bytes(PDF + b"x")
         r = c.post(f"/api/v1/binders/{b['id']}/sync", headers=h).json()
         assert r["added"] == 2 and r["new_tabs"] == 1
-        assert [t["name"] for t in r["binder"]["tabs"]] == ["Allgemein", "Rechnungen", "Steuer", "Verträge"]
+        assert [t["name"] for t in r["binder"]["tabs"]] == ["Allgemein", "Leer", "Rechnungen", "Verträge", "Steuer"]  # neue hinten
         # von Hand umsortiert bleibt, wo es ist; nichts doppelt
         steuer = next(t for t in r["binder"]["tabs"] if t["name"] == "Steuer")
         allg = next(t for t in r["binder"]["tabs"] if t["name"] == "Allgemein")
@@ -121,3 +122,25 @@ def test_import_needs_edit_right(nas):
         c.get("/api/v1/me", headers=h)
         r = c.post("/api/v1/binders/import", headers=h, json={"board_id": shelf["boards"][0]["id"], "share": "homes", "path": "tim.rinkel/Drive"})
         assert r.status_code == 403
+
+
+def test_read_target_folder(nas):
+    """Ordner von Hand angelegt + Zielordner gesetzt → „Zielordner einlesen“ nutzt vorhandene Register und legt neue an."""
+    with TestClient(app, client=("192.168.1.10", 1)) as c:
+        login(c)
+        c.patch("/api/v1/admin/shares/homes", json={"enabled": True})
+        shelf = c.post("/api/v1/shelves", json={"name": "Arbeit"}).json()
+        b = c.post("/api/v1/binders", json={"board_id": shelf["boards"][0]["id"], "title": "Firma", "tabs": ["Verträge", "Sonstiges"],
+                                            "target_share": "homes", "target_path": "tim.rinkel/Drive/Arbeit"}).json()
+        tabs = {t["name"]: t["id"] for t in b["tabs"]}
+        # Register „Sonstiges“ zeigt per eigenem Zielordner auf „Rechnungen“
+        c.patch(f"/api/v1/tabs/{tabs['Sonstiges']}", json={"target_share": "homes", "target_path": "tim.rinkel/Drive/Arbeit/Rechnungen"})
+        assert c.patch(f"/api/v1/binders/{b['id']}/source", json={"from_target": False}).status_code == 200
+        r = c.patch(f"/api/v1/binders/{b['id']}/source", json={"from_target": True}).json()
+        assert r["result"]["added"] == 4 and r["result"]["new_tabs"] == 2 and r["source"]["sync"]
+        got = {t["name"]: sorted(d["filename"] for d in t["docs"]) for t in r["tabs"]}
+        assert [t["name"] for t in r["tabs"]] == ["Allgemein", "Verträge", "Sonstiges", "Leer"]  # keine doppelten Register
+        assert got == {"Allgemein": ["Notiz.txt"], "Verträge": ["Miete.pdf"], "Sonstiges": ["R1.pdf", "R2.pdf"], "Leer": []}
+        # Ohne Zielordner geht es nicht
+        b2 = c.post("/api/v1/binders", json={"board_id": shelf["boards"][0]["id"], "title": "Leer"}).json()
+        assert c.patch(f"/api/v1/binders/{b2['id']}/source", json={"from_target": True}).status_code == 400

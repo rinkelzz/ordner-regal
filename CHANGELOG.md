@@ -2,6 +2,20 @@
 
 Alle nennenswerten Änderungen an diesem Projekt. Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.5.1] – 2026-11-11
+
+### Neu
+- **Zielordner einlesen:** Hat ein (von Hand angelegter) Ordner einen Zielordner, liest „📂 Inhalt einlesen“ (im Ordner
+  oder als Haken beim Setzen des Zielordners) dessen Inhalt ein: **Unterordner werden Register** (auch leere), Dateien
+  werden Dokumente im Register ihres Unterordners, Dateien direkt im Zielordner kommen nach „Allgemein“. Danach bleibt
+  der Ordner verknüpft – neue Dateien und Unterordner kommen nachts und per „↻ Jetzt abgleichen“ dazu.
+- **Vorhandene Register werden genutzt** statt doppelt angelegt: gleiche Namen oder ein eigener Zielordner, der auf den
+  Unterordner zeigt. Neue Register bekommen den Unterordner als Zielordner – Einsortieren aus dem Eingang landet dann
+  genau dort.
+
+### Geändert
+- Beim Abgleich behalten vorhandene Register ihre Reihenfolge; neue Register kommen hinten dazu, „Allgemein“ vorn.
+
 ## [0.5.0] – 2026-11-11
 
 ### Neu
@@ -114,6 +128,7 @@ Erste Version.
   Zwei-Faktor-Code, vier Designs, Name und Logo, nächtliche Datensicherung, Updates übers Paket-Zentrum,
   Änderungsprotokoll mit CSV-Export, Port änderbar, Testmail über eigenen SMTP-Server.
 
+[0.5.1]: https://github.com/rinkelzz/ordner-regal/releases/tag/v0.5.1
 [0.5.0]: https://github.com/rinkelzz/ordner-regal/releases/tag/v0.5.0
 [0.4.0]: https://github.com/rinkelzz/ordner-regal/releases/tag/v0.4.0
 [0.3.1]: https://github.com/rinkelzz/ordner-regal/releases/tag/v0.3.1
