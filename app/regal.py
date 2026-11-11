@@ -106,9 +106,11 @@ def shelf_detail(conn: sqlite3.Connection, user, shelf_id: int) -> dict:
     binders = conn.execute("SELECT x.* FROM binders x JOIN boards b ON b.id = x.board_id WHERE b.shelf_id = ? ORDER BY x.sort, x.id",
                            (shelf_id,)).fetchall()
     counts = binder_counts(conn, [x["id"] for x in binders], user)
+    cond, args = shares.doc_filter(conn, user)
+    dues = binder_deadlines(conn, [x["id"] for x in binders], cond, args)
     for b in boards:
         b["binders"] = [{"id": x["id"], "title": x["title"], "color": x["color"], "width": x["width"], "notes": x["notes"],
-                         **counts.get(x["id"], {})} for x in binders if x["board_id"] == b["id"]]
+                         "next_due": dues.get(x["id"]), **counts.get(x["id"], {})} for x in binders if x["board_id"] == b["id"]]
     return {"id": s["id"], "name": s["name"], "all_read": bool(s["all_read"]), "right": right, "boards": boards}
 
 
@@ -135,6 +137,30 @@ def doc_tags(conn: sqlite3.Connection, doc_ids: List[int]) -> Dict[int, list]:
 DOC_SELECT = ("SELECT d.*, f.share, f.relpath, f.size, f.mime, f.missing_since, f.text_status FROM documents d JOIN files f ON f.id = d.file_id")
 
 
+def next_deadlines(conn: sqlite3.Connection, doc_ids: List[int]) -> Dict[int, dict]:
+    """Pro Dokument die nächste offene Frist."""
+    if not doc_ids:
+        return {}
+    from . import deadlines as dl
+    out: Dict[int, dict] = {}
+    q = ",".join("?" * len(doc_ids))
+    for r in conn.execute(f"SELECT * FROM deadlines WHERE done_at IS NULL AND document_id IN ({q}) ORDER BY due_on", doc_ids):
+        if r["document_id"] not in out:
+            out[r["document_id"]] = {"id": r["id"], "due_on": r["due_on"], "title": dl.label_of(r)}
+    return out
+
+
+def binder_deadlines(conn: sqlite3.Connection, binder_ids: List[int], cond: str, args: list) -> Dict[int, str]:
+    """Pro Ordner das früheste offene Fristdatum sichtbarer Dokumente."""
+    if not binder_ids:
+        return {}
+    q = ",".join("?" * len(binder_ids))
+    rows = conn.execute(f"""SELECT t.binder_id AS bid, MIN(dl.due_on) AS due FROM tabs t JOIN filings fi ON fi.tab_id = t.id
+        JOIN documents d ON d.id = fi.document_id JOIN files f ON f.id = d.file_id JOIN deadlines dl ON dl.document_id = d.id
+        WHERE dl.done_at IS NULL AND t.binder_id IN ({q}) AND {cond} GROUP BY t.binder_id""", list(binder_ids) + args).fetchall()
+    return {r["bid"]: r["due"] for r in rows}
+
+
 def binder_detail(conn: sqlite3.Connection, user, binder_id: int) -> dict:
     shelf_id = shelf_of(conn, "binder", binder_id)
     right = need_shelf(conn, user, shelf_id)
@@ -149,9 +175,10 @@ def binder_detail(conn: sqlite3.Connection, user, binder_id: int) -> dict:
         hidden = conn.execute("SELECT COUNT(*) FROM filings fi JOIN documents d ON d.id = fi.document_id JOIN files f ON f.id = d.file_id "
                               "WHERE fi.tab_id = ? AND NOT (" + cond + ")", [t["id"]] + args).fetchone()[0]
         tags = doc_tags(conn, [r["id"] for r in rows])
+        nd = next_deadlines(conn, [r["id"] for r in rows])
         tabs.append({"id": t["id"], "name": t["name"], "color": t["color"], "hidden": hidden,
                      "target": {"share": t["target_share"], "path": t["target_path"] or ""} if t["target_share"] else None,
-                     "docs": [doc_out(conn, r, tags) for r in rows]})
+                     "docs": [{**doc_out(conn, r, tags), "next_deadline": nd.get(r["id"])} for r in rows]})
     return {"id": x["id"], "title": x["title"], "color": x["color"], "width": x["width"], "notes": x["notes"],
             "board_id": x["board_id"], "board_name": x["board_name"], "shelf": {"id": shelf["id"], "name": shelf["name"]},
             "right": right, "tabs": tabs,

@@ -93,6 +93,10 @@ Unterstützt wird jeweils die neueste Version unter [Releases](https://github.co
   Office-Dateien werden nicht mit einem XML-Parser gelesen, sondern per regulärem Ausdruck (keine Entitäten, keine
   externen Verweise); Größen sind begrenzt (Datei 64 MB, entpacktes XML 32/96 MB, Text 1 Mio. Zeichen, 1000 Seiten).
   Kaputte oder präparierte Dateien führen nur zu „nicht lesbar“.
+- **Fristen-Mails (ab 0.4):** Fristen sieht und bearbeitet nur, wer das Dokument sehen bzw. bearbeiten darf.
+  Benutzer bekommen Erinnerungen nur, solange sie das Dokument sehen dürfen (wird bei jedem Versand neu geprüft).
+  Freie Mailadressen bekommen Titel, Frist, Ablageort und Notiz des Dokuments – nie die Datei selbst. Mails gehen nur
+  über den eingetragenen SMTP-Server; Betreffzeilen werden von Zeilenumbrüchen bereinigt.
 - **Rechte am Regal** werden bei jeder Schnittstelle geprüft (auch wenn die Oberfläche Knöpfe ohnehin ausblendet):
   Ansehen reicht nicht zum Ablegen, Umstellen oder Löschen; Regale anlegen und löschen nur mit Vollzugriff.
 

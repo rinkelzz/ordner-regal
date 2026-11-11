@@ -12,9 +12,10 @@ Regal merkt sich nur, wo sie liegen, und findet sie über ihren Fingerabdruck wi
 Wer was sieht, richtet sich nach den **Rechten in DSM**. Für zu Hause (Versicherungen, Steuer, Verträge) und fürs
 Büro (Ablage pro Kunde auf dessen NAS).
 
-> **Stand 0.3:** Regale, Fächer, Ordner und Register, Dokumente aus Freigaben ablegen, Vorschau, Schlagworte,
+> **Stand 0.4:** Regale, Fächer, Ordner und Register, Dokumente aus Freigaben ablegen, Vorschau, Schlagworte,
 > Rechte pro Regal und aus DSM, Wiederfinden verschobener Dateien, **Scanner-Eingang** mit Verschieben in den
-> Zielordner und **Volltextsuche** in PDF, Office und Textdateien. Siehe [Fahrplan](#fahrplan).
+> Zielordner, **Volltextsuche** in PDF, Office und Textdateien und **Fristen & Wiedervorlage** mit Mail-Erinnerung.
+> Siehe [Fahrplan](#fahrplan).
 
 ![Regal](docs/screenshots/regal.png)
 
@@ -84,6 +85,19 @@ Büro (Ablage pro Kunde auf dessen NAS).
 |---|---|
 | ![Ordner](docs/screenshots/ordner.png) | ![Ablegen](docs/screenshots/ablegen.png) |
 
+### Fristen & Wiedervorlage (0.4)
+
+- **Fristen am Dokument:** Kündigungsfrist, Läuft ab, Wiedervorlage, Zahlung fällig, Garantie endet – oder mit eigenem
+  Namen. Mit Notiz (steht in der Mail) und optional **wiederkehrend** (monatlich, viertel-, halbjährlich, jährlich):
+  „Erledigt“ springt dann auf den nächsten Termin.
+- **Erinnerungs-Mails** an die Empfänger der Frist – Benutzer (an ihre Adresse unter „Mein Zugang“, nur solange sie das
+  Dokument sehen dürfen) und weitere Adressen: so viele Tage **vorher** wie eingestellt, **am Tag selbst**, und solange
+  nicht erledigt **nachfassen** (Standard alle 7 Tage). Dazu eine **wöchentliche Sammelmail** (Standard montags).
+- **Reiter „⏰ Fristen“** mit Zähler: überfällig, diese Woche, nächste 30 Tage, später; „Erledigt“-Ansicht, „nur meine“.
+- Im Regal: **oranger Punkt** am Ordnerrücken (rot: überfällig), Fristen in der Seitenleiste, ⏰ an den Dokumenten.
+
+![Fristen](docs/screenshots/fristen.png)
+
 | Am Handy |
 |---|
 | ![Handy](docs/screenshots/handy.png) |
@@ -125,7 +139,7 @@ DSM – jeder nur seinen eigenen Ordner `homes/<benutzername>`; wer in DSM die g
 | **0.1** | Regale, Fächer, Ordner, Register, Ablegen aus Freigaben, Vorschau, Schlagworte, Suche, Rechte aus DSM, Wiederfinden | ✅ |
 | **0.2** | **Scanner-Eingang:** Eingangsordner, Einsortieren per Ziehen auf den Ordnerrücken, Verschieben in den **Zielordner** von Ordner/Register, Dateiname-Vorschlag | ✅ |
 | **0.3** | **Volltextsuche** in PDF, Office und Textdateien (auch im Eingang), Treffer mit Ausschnitt, Ergebnisseite | ✅ |
-| **0.4** | **Fristen & Wiedervorlage** (Kündigungsfrist, Ablaufdatum) mit Mail-Erinnerung, Fristen-Übersicht | geplant |
+| **0.4** | **Fristen & Wiedervorlage** mit Wiederholung, Empfängern pro Frist, Mails vorher/am Tag/nachfassen, Sammelmail | ✅ |
 
 ## Installation auf der Synology
 
@@ -260,7 +274,9 @@ The user interface is German.
   target folder with a suggested file name; never overwrites, requires DSM write permission on source and target.
 - 0.3: full-text search in PDF (pypdf), Office (docx/xlsx/pptx, odt/ods/odp) and text files, including inbox files;
   highlighted snippets, results page with filters; SQLite FTS5 with a LIKE fallback; image-only PDFs are flagged.
-- Planned: 0.4 deadlines and follow-ups with e-mail reminders.
+- 0.4: deadlines and follow-ups on documents (cancellation, expiry, follow-up, payment, warranty, custom), repeating
+  monthly to yearly, recipients per deadline; e-mails n days before, on the day, follow-ups while overdue and a weekly
+  digest; deadline overview with badge, dots on binder spines.
 
 Install: download the `.spk` from [Releases](https://github.com/rinkelzz/ordner-regal/releases) →
 Package Center → Manual Install, then grant the system user `ordnerregal` access to your shared folders.

@@ -101,6 +101,7 @@ function bindSwatches(card, key) {
 // ---------- Einstieg ----------
 async function docShow(tab, sub) {
   if (tab === "eingang") return window.inboxShow ? inboxShow() : null;
+  if (tab === "fristen") { if (!R.shelves.length) await loadShelves(); return window.fristenShow ? fristenShow() : null; }
   if (tab !== "regal") return;
   $("regalErr").textContent = "";
   try {
@@ -116,6 +117,7 @@ window.docShow = docShow;
 function go(sub) { history.replaceState(null, "", "#regal/" + sub); state.sub = sub; }
 
 async function loadShelves() {
+  if (window.deadlineCount) deadlineCount();
   const r = await api("shelves");
   R.shelves = r.shelves; R.canCreate = r.can_create; R.hasShares = r.has_shares;
   renderShelfList();
@@ -153,12 +155,19 @@ async function openShelf(id) {
   R.shelf = await api(`shelves/${id}`); R.shelfId = id; R.binder = null; R.tagFilter = null;
   go("s" + id); renderShelfList(); renderShelf();
 }
+function daysUntil(iso) { const t = new Date(); t.setHours(0, 0, 0, 0); return Math.round((new Date(iso + "T00:00:00") - t) / 86400000); }
+function dueDot(iso) {
+  if (!iso) return "";
+  const d = daysUntil(iso);
+  if (d > 30) return "";
+  return `<span class="duedot ${d < 0 ? "over" : ""}" title="Frist ${deDate(iso)} – ${d < 0 ? "überfällig" : d === 0 ? "heute" : "in " + d + " Tagen"}"></span>`;
+}
 function spineHtml(x, edit) {
   const n = x.docs + (x.hidden ? ` (+${x.hidden})` : "");
   return `<button class="spine w${x.width}" data-bid="${x.id}" style="background:${esc(x.color)}"
      title="${esc(x.title)} – ${x.docs} Dokumente${x.hidden ? `, ${x.hidden} ohne Berechtigung ausgeblendet` : ""}${x.missing ? `, ${x.missing} Datei(en) fehlen` : ""}">
      <span class="lb"><span>${esc(x.title)}</span></span><span class="ring"></span><span class="n">${x.width > 1 ? n + " Dok." : x.docs}</span>
-     ${x.missing ? '<span class="dot"></span>' : ""}</button>`;
+     ${x.missing ? '<span class="dot"></span>' : ""}${dueDot(x.next_due)}</button>`;
 }
 function renderShelf() {
   const s = R.shelf, edit = s.right === "edit";
@@ -173,7 +182,7 @@ function renderShelf() {
         ${b === s.boards[s.boards.length - 1] ? `<button class="tray" data-tray title="Zum Eingang"><span class="paper"></span><span class="paper"></span><b>Eingang · <span class="trayCount">${window.E && E.count ? E.count + " neu" : "…"}</span></b></button>` : ""}
       </div>`).join("")}<div class="shelfEnd"></div></div>
     <p class="shelfHint">${edit ? "Ordner per Ziehen umstellen (auch in ein anderes Fach) · " : ""}Klick öffnet den Ordner ·
-      Zahl = Dokumente, (+n) = ohne Berechtigung in DSM ausgeblendet · roter Punkt = Datei fehlt · Die Dateien bleiben in der File Station, das Regal verweist nur darauf.</p>`;
+      Zahl = Dokumente, (+n) = ohne Berechtigung in DSM ausgeblendet · oranger Punkt = Frist in den nächsten 30 Tagen (rot: überfällig) · roter Punkt rechts = Datei fehlt · Die Dateien bleiben in der File Station, das Regal verweist nur darauf.</p>`;
   const m = $("regalMain");
   $$(".spine", m).forEach(el => el.onclick = () => { if (!justDragged()) openBinder(Number(el.dataset.bid)); });
   const tray = m.querySelector("[data-tray]"); if (tray) tray.onclick = () => showTab("eingang");
@@ -324,7 +333,8 @@ function renderBinder() {
           <tr data-doc="${d.id}" class="${d.id === R.docId ? "sel" : ""} ${d.missing ? "missing" : ""}">
             <td><div style="display:flex">${icoFor(d.mime, d.filename)}<div><b>${esc(d.title)}</b>${d.missing ? ' <span class="tag warn" title="Datei verschoben oder gelöscht">fehlt</span>' : ""}
               <div class="dpath">${esc(d.share)}/${esc(d.path)}</div></div></div></td>
-            <td class="nowrap">${deDate(d.doc_date) || '<span class="muted">–</span>'}</td>
+            <td class="nowrap">${deDate(d.doc_date) || '<span class="muted">–</span>'}${d.next_deadline && daysUntil(d.next_deadline.due_on) <= 30
+              ? `<br><span class="duechip ${daysUntil(d.next_deadline.due_on) < 0 ? "over" : ""}" title="${esc(d.next_deadline.title)}">⏰ ${deDate(d.next_deadline.due_on)}</span>` : ""}</td>
             <td>${d.tags.map(x => `<span class="dtag">${esc(x.name)}</span>`).join("")}</td></tr>`).join("")}</tbody></table></div>`
           : `<div class="empty">${edit ? "Noch leer. Mit <b>＋ Dokumente ablegen</b> Dateien aus deinen Freigaben hineinlegen." : "Keine Dokumente in diesem Register."}</div>`}
         ${t.hidden ? `<p class="muted small">${t.hidden} weitere Dokument(e) liegen in Freigaben, die du in DSM nicht lesen darfst.</p>` : ""}
@@ -447,6 +457,7 @@ async function showDoc() {
       ${d.notes ? `<dt>Notiz</dt><dd style="white-space:pre-wrap">${esc(d.notes)}</dd>` : ""}
       <dt>Liegt in</dt><dd class="places">${d.places.map(p => `<a data-go="${p.binder_id}">${esc(p.shelf)} › ${esc(p.binder)} › ${esc(p.tab)}</a>`).join("<br>")}</dd></dl>
     ${d.missing ? '<p class="small err" style="margin:0">Die Datei ist nicht mehr am gespeicherten Ort. Die nächtliche Prüfung sucht sie in den Freigaben (über ihren Fingerabdruck) – oder ein Admin startet sie unter Verwaltung → Freigaben.</p>' : ""}`;
+  if (window.docDeadlines) docDeadlines(box, d);
   if (!d.missing) renderPreview(box.querySelector("[data-pv]"), `api/v1/docs/${d.id}/file`, d.mime);
   else box.querySelector("[data-pv]").innerHTML = '<span class="muted">Datei fehlt</span>';
   const on = (sel, fn) => { const el = box.querySelector(sel); if (el) el.onclick = fn; };

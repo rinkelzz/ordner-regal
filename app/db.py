@@ -240,11 +240,54 @@ CREATE TABLE IF NOT EXISTS inbox_text (
             continue  # kein FTS5 oder Option zu neu – nächste Variante bzw. ohne FTS
 
 
+def _m5_fristen(conn: sqlite3.Connection) -> None:
+    """Version 0.4: Fristen und Wiedervorlagen an Dokumenten, Empfänger, verschickte Erinnerungen."""
+    _run(conn, """
+-- kind: kuendigung | ablauf | wiedervorlage | zahlung | garantie | eigene
+-- repeat: leer = einmalig, sonst monthly | quarterly | halfyearly | yearly
+CREATE TABLE IF NOT EXISTS deadlines (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    document_id  INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+    kind         TEXT NOT NULL DEFAULT 'wiedervorlage',
+    label        TEXT NOT NULL DEFAULT '',
+    due_on       TEXT NOT NULL,
+    lead_days    INTEGER NOT NULL DEFAULT 14,
+    repeat       TEXT NOT NULL DEFAULT '',
+    note         TEXT NOT NULL DEFAULT '',
+    done_at      TEXT,
+    done_by      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_by   INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at   TEXT NOT NULL,
+    updated_at   TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_deadlines_due ON deadlines(done_at, due_on);
+CREATE INDEX IF NOT EXISTS idx_deadlines_doc ON deadlines(document_id);
+
+CREATE TABLE IF NOT EXISTS deadline_recipients (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    deadline_id  INTEGER NOT NULL REFERENCES deadlines(id) ON DELETE CASCADE,
+    user_id      INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    email        TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_deadrec ON deadline_recipients(deadline_id);
+
+-- verschickte Erinnerungen (nie doppelt): what = lead | day | overdue:<n>
+CREATE TABLE IF NOT EXISTS deadline_sent (
+    deadline_id  INTEGER NOT NULL REFERENCES deadlines(id) ON DELETE CASCADE,
+    due_on       TEXT NOT NULL,
+    what         TEXT NOT NULL,
+    sent_at      TEXT NOT NULL,
+    PRIMARY KEY (deadline_id, due_on, what)
+)
+""")
+
+
 MIGRATIONS: Dict[int, Callable[[sqlite3.Connection], None]] = {
     1: _m1_basis,
     2: _m2_regal,
     3: _m3_eingang,
     4: _m4_volltext,
+    5: _m5_fristen,
 }
 SCHEMA_VERSION = max(MIGRATIONS)
 
@@ -275,6 +318,14 @@ DEFAULT_SETTINGS = {
     # Dateien regelmäßig prüfen und verschobene Dateien über den Fingerabdruck wiederfinden
     "filecheck_hour": "3",
     "filecheck_last_day": "",
+    # Fristen-Mails: täglich ab dieser Stunde; Sammelmail am Wochentag (0 = Montag); Nachfassen alle n Tage
+    "deadline_hour": "7",
+    "deadline_digest": "1",
+    "deadline_digest_weekday": "0",
+    "deadline_overdue_days": "7",
+    "deadline_last_day": "",
+    "deadline_last_digest": "",
+    "deadline_last_result": "",
     # Eigener Reverse Proxy im LAN (z. B. Nginx Proxy Manager), dem X-Forwarded-For geglaubt wird
     "trusted_proxies": "",
     # Weboberfläche über unverschlüsseltes http aus dem Netz (nicht DSM-Fenster, nicht https): standardmäßig gesperrt.

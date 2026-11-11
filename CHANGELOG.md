@@ -2,6 +2,23 @@
 
 Alle nennenswerten Änderungen an diesem Projekt. Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.4.0] – 2026-11-11
+
+### Neu: Fristen & Wiedervorlage
+- **Fristen am Dokument:** Kündigungsfrist, Läuft ab, Wiedervorlage, Zahlung fällig, Garantie endet oder eigene –
+  mit Datum, Notiz und optionaler **Wiederholung** (monatlich, vierteljährlich, halbjährlich, jährlich). Bei
+  wiederkehrenden Fristen springt „Erledigt“ auf den nächsten Termin (Monatsende wird richtig behandelt).
+- **Empfänger pro Frist:** Standard ist, wer die Frist anlegt; dazu weitere Benutzer, die das Dokument sehen dürfen,
+  und freie Mailadressen. Benutzer ohne Mailadresse werden markiert.
+- **Erinnerungs-Mails:** n Tage vorher (pro Frist, Standard 14), am Tag selbst, Nachfassen solange überfällig (Standard
+  alle 7 Tage) und eine **wöchentliche Sammelmail** (Standard Montag). Nichts kommt doppelt; verpasste Tage (NAS aus)
+  werden nachgeholt. Mails enthalten einen Link direkt in den Ordner (mit eingetragener öffentlicher Adresse).
+- **Reiter „⏰ Fristen“** mit Zähler, gruppiert nach überfällig / diese Woche / 30 Tage / später, „nur meine“,
+  Erledigt-Liste und „Wieder öffnen“.
+- **Im Regal:** oranger Punkt am Ordnerrücken (rot: überfällig), nächste Fristen in der Seitenleiste, ⏰ an den
+  Dokumenten, Fristen-Kasten beim geöffneten Dokument.
+- **Verwaltung → Mail → Fristen-Mails:** Uhrzeit, Nachfassen, Sammelmail-Tag, „Jetzt senden“, letzter Lauf.
+
 ## [0.3.1] – 2026-11-11
 
 ### Behoben
@@ -84,6 +101,7 @@ Erste Version.
   Zwei-Faktor-Code, vier Designs, Name und Logo, nächtliche Datensicherung, Updates übers Paket-Zentrum,
   Änderungsprotokoll mit CSV-Export, Port änderbar, Testmail über eigenen SMTP-Server.
 
+[0.4.0]: https://github.com/rinkelzz/ordner-regal/releases/tag/v0.4.0
 [0.3.1]: https://github.com/rinkelzz/ordner-regal/releases/tag/v0.3.1
 [0.3.0]: https://github.com/rinkelzz/ordner-regal/releases/tag/v0.3.0
 [0.2.1]: https://github.com/rinkelzz/ordner-regal/releases/tag/v0.2.1

@@ -32,6 +32,7 @@
   <nav id="tabs">
     <button data-tab="regal">🗄️ Regal</button>
     <button data-tab="eingang">📥 Eingang <span class="nbadge hidden" id="inBadge"></span></button>
+    <button data-tab="fristen">⏰ Fristen <span class="nbadge hidden" id="dlBadge"></span></button>
     <button data-tab="admin" class="admin hidden">Verwaltung</button>
   </nav>
   <button class="userchip" id="userChip" data-tab="me" title="Mein Zugang"><span class="av" id="userAv"></span><span class="lbl" id="userName"></span></button>
@@ -47,6 +48,7 @@
       <aside class="rside">
         <section class="card"><h3 class="rh">Regale</h3><div id="shelfList"></div>
           <button class="linkbtn admin hidden" id="shelfNew">＋ Neues Regal</button></section>
+        <section class="card"><h3 class="rh">Fristen</h3><div id="dueList" class="dueList"></div></section>
         <section class="card"><h3 class="rh">Schlagworte</h3><div id="tagCloud" class="tagcloud"></div></section>
       </aside>
       <section class="rmain" id="regalMain"></section>
@@ -56,6 +58,9 @@
 
   <!-- EINGANG -->
   <div data-page="eingang" class="page hidden"><div id="eingangMain" class="rmain"></div></div>
+
+  <!-- FRISTEN -->
+  <div data-page="fristen" class="page hidden"><div id="fristenMain" class="rmain"></div></div>
 
   <!-- VERWALTUNG -->
   <div data-page="admin" class="page hidden">
@@ -176,8 +181,27 @@
     </section>
 
     <section class="card asec" data-asec="mail">
+      <h2>⏰ Fristen-Mails</h2>
+      <p class="muted small" style="margin-top:0">Erinnerungen pro Frist: so viele Tage vorher wie an der Frist eingestellt, am Tag selbst und – solange nicht
+        erledigt – erneut im eingestellten Abstand. Dazu einmal pro Woche eine Sammelmail mit allem, was überfällig ist oder in den nächsten
+        30 Tagen fällig wird. Empfänger legt man pro Frist fest; Benutzer bekommen Mails an ihre Adresse unter „Mein Zugang“ – und nur,
+        solange sie das Dokument sehen dürfen.</p>
+      <div class="row">
+        <label>Täglich ab <select id="fmHour" style="width:100px"></select></label>
+        <label>Nachfassen, wenn überfällig <select id="fmOver"><option value="0">nie</option><option value="3">alle 3 Tage</option>
+          <option value="7">alle 7 Tage</option><option value="14">alle 14 Tage</option><option value="30">alle 30 Tage</option></select></label>
+        <label class="inline"><input type="checkbox" id="fmDigest"> Sammelmail jeden</label>
+        <select id="fmDay" style="width:140px"></select>
+        <label>&nbsp;<button class="primary" id="fmSave">Speichern</button></label>
+        <label>&nbsp;<button id="fmRun" title="Fällige Erinnerungen und die Sammelmail jetzt verschicken">Jetzt senden</button></label>
+      </div>
+      <p class="small" id="fmInfo"></p>
+      <div class="err" id="fmErr"></div>
+    </section>
+
+    <section class="card asec" data-asec="mail">
       <h2>Mailserver (SMTP)</h2>
-      <p class="muted small" style="margin-top:0">Für Testmails – und ab Version 0.4 für Fristen-Erinnerungen.</p>
+      <p class="muted small" style="margin-top:0">Für Testmails und die Fristen-Erinnerungen.</p>
       <p class="muted small" style="margin-top:0">Das Passwort wird nicht in Datensicherungen gespeichert.</p>
       <div class="setgrid">
         <fieldset><legend>Server</legend>
@@ -331,5 +355,6 @@
 <script src="static/app.js?v={{v}}"></script>
 <script src="static/regal.js?v={{v}}"></script>
 <script src="static/eingang.js?v={{v}}"></script>
+<script src="static/fristen.js?v={{v}}"></script>
 </body>
 </html>

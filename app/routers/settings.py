@@ -228,10 +228,10 @@ def mail_test(data: MailTestIn, admin=Depends(admin_user), conn: sqlite3.Connect
 
 # --- Änderungsprotokoll -------------------------------------------------------
 
-AUDIT_CATEGORIES = {"regal": "Regal & Ordner", "dokumente": "Dokumente", "anmeldung": "Anmeldung", "benutzer": "Benutzer",
+AUDIT_CATEGORIES = {"regal": "Regal & Ordner", "dokumente": "Dokumente", "fristen": "Fristen", "anmeldung": "Anmeldung", "benutzer": "Benutzer",
                     "einstellungen": "Einstellungen", "sicherung": "Datensicherung"}
 TARGET_KINDS = {"shelf": "Regal", "board": "Fach", "binder": "Ordner", "tab": "Register", "doc": "Dokument", "share": "Freigabe",
-                "tag": "Schlagwort", "inbox": "Eingang"}
+                "tag": "Schlagwort", "inbox": "Eingang", "deadline": "Frist"}
 AUDIT_ACTIONS = {
     "shelf_created": ("regal", "Regal angelegt"),
     "shelf_updated": ("regal", "Regal geändert"),
@@ -259,6 +259,12 @@ AUDIT_ACTIONS = {
     "tag_updated": ("dokumente", "Schlagwort geändert"),
     "tag_deleted": ("dokumente", "Schlagwort gelöscht"),
     "share_updated": ("einstellungen", "Freigabe ein-/ausgeschaltet"),
+    "deadline_created": ("fristen", "Frist angelegt"),
+    "deadline_updated": ("fristen", "Frist geändert"),
+    "deadline_deleted": ("fristen", "Frist gelöscht"),
+    "deadline_done": ("fristen", "Frist erledigt"),
+    "deadline_mail": ("fristen", "Erinnerung verschickt"),
+    "deadline_digest": ("fristen", "Sammelmail verschickt"),
     "login": ("anmeldung", "Anmeldung"),
     "password_changed": ("anmeldung", "Passwort geändert"),
     "profile_updated": ("benutzer", "Eigenes Profil geändert"),

@@ -859,7 +859,7 @@ table.docs tr.missing td:first-child b { text-decoration: line-through; opacity:
   .board { min-height: 200px; } .spine { height: 180px; } .spine .lb { height: 104px; } .spine .lb span { max-height: 98px; }
 }
 @media (max-width: 760px) {
-  .rside .card:nth-child(2) { display: none; }
+  .rside .card:nth-child(2), .rside .card:nth-child(3) { display: none; }
   #shelfList { display: flex; gap: 6px; overflow-x: auto; }
   .shelfItem { width: auto; white-space: nowrap; border: 1px solid var(--line); }
   .rside .card { padding: 10px; }
@@ -915,3 +915,36 @@ html.dark .sres mark, [data-theme="dark"] .sres mark { background: #744210; }
 .dragchip { background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 13px; white-space: nowrap; }
 .spine.dragging { opacity: .35; }
 table.docs tr.dragging td, .inlist .it.dragging { opacity: .45; }
+
+/* ===================== Fristen (0.4) ===================== */
+.nbadge.warnb { background: #dd6b20; }
+.spine .duedot { position: absolute; top: 5px; left: 5px; width: 10px; height: 10px; border-radius: 50%; background: #f6ad55; border: 2px solid #fff; }
+.spine .duedot.over { background: #e53e3e; }
+.duechip { display: inline-block; margin-top: 3px; font-size: 11px; padding: 0 6px; border-radius: 999px; background: #fefcbf; color: #744210; }
+.duechip.over { background: #fed7d7; color: #9b2c2c; }
+.dueList { display: grid; gap: 2px; }
+.dueItem { display: grid; text-align: left; border: none; background: none; padding: 6px 4px; border-bottom: 1px solid var(--line); border-radius: 0; color: var(--text); }
+.dueItem:last-child { border-bottom: none; }
+.dueItem b { font-size: 13px; } .dueItem span { font-size: 12px; color: var(--muted); }
+.due.over { color: var(--bad); font-weight: 600; } .due.soon { color: #c05621; font-weight: 600; } .due.near { color: #b7791f; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { border: none; border-radius: 0; padding: 6px 12px; }
+.seg button.on { background: var(--accent); color: var(--accent-ink); }
+.dlgroup h3 { margin: 0 0 8px !important; }
+.dlrow { display: grid; grid-template-columns: 130px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 4px; border-top: 1px solid var(--line); }
+.dlgroup h3 + .dlrow { border-top: none; }
+.dlrow.done { opacity: .7; }
+.dldate { display: grid; border-left: 4px solid var(--line); padding-left: 10px; }
+.dldate small { color: var(--muted); font-size: 12px; }
+.dldate.over { border-color: #e53e3e; } .dldate.over small { color: var(--bad); font-weight: 600; }
+.dldate.soon { border-color: #dd6b20; } .dldate.near { border-color: #ecc94b; }
+.dlmain { display: grid; gap: 2px; min-width: 0; }
+.dlmain a { cursor: pointer; color: var(--accent); font-size: 14px; }
+.dlmain small { font-size: 12px; word-break: break-word; }
+.frist { background: #fffaf0; border: 1px solid #fbd38d; border-radius: 8px; padding: 8px 10px; font-size: 13px; }
+html.dark .frist, [data-theme="dark"] .frist { background: #2d2412; border-color: #744210; }
+.frist .fr { display: flex; justify-content: space-between; gap: 8px; align-items: center; padding: 4px 0; border-top: 1px dashed #f6e05e; }
+.frist .fr small { display: block; color: var(--muted); }
+.frist .fr.over small { color: var(--bad); font-weight: 600; }
+.rcpts { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 6px 0 8px; }
+@media (max-width: 760px) { .dlrow { grid-template-columns: 1fr; } .dueList { display: none; } }
