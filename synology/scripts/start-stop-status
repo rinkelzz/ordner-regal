@@ -15,7 +15,7 @@ start_daemon() {
     fi
     [ -f "${CONFIG}" ] && . "${CONFIG}"
     export ORG_DATA_DIR="${PKGVAR}"
-    export ORG_PORT="${ORG_PORT:-8790}"
+    export ORG_PORT="${ORG_PORT:-8800}"
     export ORG_HOST="${ORG_HOST:-0.0.0.0}"
     export ORG_PUBLIC_URL ORG_ROOT_PATH ORG_COOKIE_SECURE ORG_TIMEZONE
     export ORG_UI_DIR="${PKGDEST}/ui"

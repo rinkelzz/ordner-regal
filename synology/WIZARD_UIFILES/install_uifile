@@ -33,12 +33,12 @@
             },
             {
                 "type": "textfield",
-                "desc": "Port, auf dem das Ordner-Regal im Heimnetz läuft. Nur ändern, wenn 8790 schon belegt ist – später unter Verwaltung → System änderbar.",
+                "desc": "Port, auf dem das Ordner-Regal im Heimnetz läuft. Nur ändern, wenn 8800 schon belegt ist – später unter Verwaltung → System änderbar.",
                 "subitems": [
                     {
                         "key": "wizard_port",
                         "desc": "Port",
-                        "defaultValue": "8790",
+                        "defaultValue": "8800",
                         "validator": {
                             "allowBlank": false,
                             "regex": {

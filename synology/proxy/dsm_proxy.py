@@ -51,7 +51,7 @@ def read_file(path):
 
 def port():
     m = re.search(r"^ORG_PORT=\"?(\d+)", read_file(os.path.join(VAR, "config.env")), re.M)
-    return int(m.group(1)) if m else int(read_file(os.path.join(TARGET, ".port")) or 8790)
+    return int(m.group(1)) if m else int(read_file(os.path.join(TARGET, ".port")) or 8800)
 
 
 def dsm_user(token):

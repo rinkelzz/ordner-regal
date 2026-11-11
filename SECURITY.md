@@ -81,7 +81,7 @@ Unterstützt wird jeweils die neueste Version unter [Releases](https://github.co
 ## Hinweise für den Betrieb
 
 - Für private Dokumente ist ein **VPN** zur NAS meist besser als eine öffentliche Adresse. Wenn
-  doch von außen, dann nur per **HTTPS** (Reverse Proxy von DSM mit Zertifikat), nie den Port (Standard 8790)
+  doch von außen, dann nur per **HTTPS** (Reverse Proxy von DSM mit Zertifikat), nie den Port (Standard 8800)
   direkt. Bei Zugriff per `http://` aus dem Internet zeigt die App eine Warnung.
 - **Vollzugriff** nur an Personen geben, die ihn wirklich brauchen. DSM-Administratoren haben ihn standardmäßig –
   unter Verwaltung → Einstellungen abschaltbar. Eigene Konten mit Vollzugriff sehen alle eingeschalteten Freigaben.

@@ -7,7 +7,7 @@ Einrichtung startet. Im Synology-Paket setzt sie das Start-Skript aus
 import os
 from pathlib import Path
 
-DEFAULT_PORT = 8790
+DEFAULT_PORT = 8800
 
 
 def _bool(name: str, default: bool) -> bool:

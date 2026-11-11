@@ -105,7 +105,7 @@ Voraussetzung: DSM 7. Ein Paket für alle Modelle – **Intel/AMD** und **ARM** 
 3. Im Assistenten eingeben:
    - ein Passwort für den Benutzer `admin` (mindestens 8 Zeichen),
    - optional einen **Namen** für die Kopfzeile (z. B. „Familie Rinkel“ oder den Firmennamen),
-   - den **Port** (Standard `8790` – nur ändern, wenn er schon belegt ist).
+   - den **Port** (Standard `8800` – nur ändern, wenn er schon belegt ist).
 4. „Ordner-Regal“ erscheint im DSM-Hauptmenü.
 
 Das Paket nutzt das Python der NAS (3.8 bis 3.13). Fehlt es, bricht die Installation mit einem Hinweis ab –
@@ -135,7 +135,7 @@ Einmalig einrichten:
 1. **Paket-Zentrum → Einstellungen → Allgemein → Vertrauensebene:** „Beliebiger Herausgeber“
    (das Paket ist nicht von Synology signiert).
 2. **Paket-Zentrum → Einstellungen → Paketquellen → Hinzufügen:** Name `Ordner-Regal`,
-   Ort `http://127.0.0.1:8790/spk` (bei geändertem Port entsprechend – die genaue Adresse steht in der App
+   Ort `http://127.0.0.1:8800/spk` (bei geändertem Port entsprechend – die genaue Adresse steht in der App
    unter **Verwaltung → System → Updates**).
 
 Die App prüft etwa alle 30 Minuten (oder per „Jetzt prüfen“), lädt eine neue SPK auf die NAS und bietet sie dort an.
@@ -159,7 +159,7 @@ mitgesichert**. Den Ordner bitte **nicht für alle freigeben**.
 
 ## Von unterwegs erreichbar machen (Reverse Proxy)
 
-Die Weboberfläche gibt es standardmäßig nur im DSM-Fenster und über **https** – unverschlüsseltes `http://NAS:8790`
+Die Weboberfläche gibt es standardmäßig nur im DSM-Fenster und über **https** – unverschlüsseltes `http://NAS:8800`
 aus dem Netz zeigt eine Hinweisseite (die Paketquelle funktioniert trotzdem). Wer im eigenen LAN doch über
 http arbeiten will: Verwaltung → System → Zugriff.
 
@@ -168,11 +168,11 @@ Für den Zugriff von außen braucht die App eine eigene https-Adresse, z. B. `ht
 1. DNS-Eintrag für die Subdomain auf die NAS zeigen lassen (z. B. CNAME auf die DDNS-Adresse).
 2. **Systemsteuerung → Sicherheit → Zertifikat**: Let's-Encrypt-Zertifikat für die Subdomain.
 3. **Systemsteuerung → Anmeldeportal → Erweitert → Reverse Proxy**: Quelle `HTTPS regal.meinedomain.de:443`,
-   Ziel `HTTP localhost:8790`.
+   Ziel `HTTP localhost:8800`.
 4. In der App unter **Verwaltung → Einstellungen → Öffentliche Adresse** genau diese Adresse eintragen.
 
 **Eigener Proxy auf einem anderen Gerät** (z. B. Nginx Proxy Manager, auf den der Router 80/443 weiterleitet):
-Proxy Host mit Ziel `http://<IP der NAS>:8790` und Let's-Encrypt-Zertifikat anlegen und unter
+Proxy Host mit Ziel `http://<IP der NAS>:8800` und Let's-Encrypt-Zertifikat anlegen und unter
 **Verwaltung → System → Eigener Reverse Proxy** die IP des Proxys eintragen – sonst sieht die App alle Zugriffe mit
 dessen Adresse.
 
@@ -192,7 +192,7 @@ die **Paketquelle** im Paket-Zentrum und das **Ziel im Reverse Proxy**.
 ```bash
 pip install -r requirements-dev.txt
 pytest -q                                    # alle Tests
-ORG_DATA_DIR=./data ORG_SHARE_ROOTS=/pfad/zu/testvolume python -m app.main   # http://localhost:8790
+ORG_DATA_DIR=./data ORG_SHARE_ROOTS=/pfad/zu/testvolume python -m app.main   # http://localhost:8800
 ```
 
 Beim ersten Start ohne `ORG_ADMIN_PASSWORD` steht das Admin-Passwort in `data/ERSTES_ADMIN_PASSWORT.txt`.

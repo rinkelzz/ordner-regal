@@ -24,7 +24,7 @@
   var box = document.getElementById("box");
   function go(url) { window.location.replace(url); }
   function show(cfg) {
-    var port = (cfg && cfg.port) || 8790;
+    var port = (cfg && cfg.port) || 8800;
     var root = (cfg && cfg.root_path) || "";
     var pub = (cfg && cfg.public_url) || "";
     var direct = "http://" + location.hostname + ":" + port + root + "/";

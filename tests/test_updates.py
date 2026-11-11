@@ -72,7 +72,7 @@ def test_catalog_and_download(admin, fake_github):
 
     st = admin.post("/api/v1/updates/check").json()
     assert st["latest"] == "99.1.0" and st["update_available"] and st["ready"] and st["error"] is None
-    assert st["installed"] == __version__ and st["source_url"].endswith(":8790/spk")
+    assert st["installed"] == __version__ and st["source_url"].endswith(":8800/spk")
 
     cat = admin.post("/spk", data={"arch": "apollolake", "build": "72806", "language": "ger"}).json()
     (pkg,) = cat["packages"]

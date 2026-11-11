@@ -3,10 +3,10 @@
 
 mkdir -p "${PKGVAR}"
 
-PORT="${wizard_port:-8790}"
-case "$PORT" in ''|*[!0-9]*) PORT=8790 ;; esac
+PORT="${wizard_port:-8800}"
+case "$PORT" in ''|*[!0-9]*) PORT=8800 ;; esac
 # Ports, die DSM selbst braucht, nicht zulassen
-case "$PORT" in 80|443|5000|5001|5005|5006|6690|9900|9901) PORT=8790 ;; esac
+case "$PORT" in 80|443|5000|5001|5005|5006|6690|9900|9901) PORT=8800 ;; esac
 
 if [ ! -f "${CONFIG}" ]; then
     {

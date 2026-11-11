@@ -13,8 +13,8 @@ from app.main import app
 @pytest.fixture()
 def admin(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "config_file", tmp_path / "config.env")
-    (tmp_path / "config.env").write_text('# Kommentar\nORG_PORT=8790\nORG_TIMEZONE="Europe/Berlin"\n', encoding="utf-8")
-    with TestClient(app, base_url="http://nas.local:8790") as c:
+    (tmp_path / "config.env").write_text('# Kommentar\nORG_PORT=8800\nORG_TIMEZONE="Europe/Berlin"\n', encoding="utf-8")
+    with TestClient(app, base_url="http://nas.local:8800") as c:
         assert c.post("/api/v1/auth/login", json={"username": "admin", "password": os.environ["ORG_ADMIN_PASSWORD"]}).status_code == 200
         yield c
 
@@ -37,7 +37,7 @@ def test_check_port():
 
 def test_write_config_keeps_other_lines(tmp_path):
     p = tmp_path / "config.env"
-    p.write_text('# Kopf\nORG_PORT=8790\nORG_PUBLIC_URL=""\n', encoding="utf-8")
+    p.write_text('# Kopf\nORG_PORT=8800\nORG_PUBLIC_URL=""\n', encoding="utf-8")
     portcfg.write_config(9123, p)
     assert p.read_text(encoding="utf-8") == '# Kopf\nORG_PORT=9123\nORG_PUBLIC_URL=""\n'
     q = tmp_path / "neu.env"
