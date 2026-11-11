@@ -172,6 +172,15 @@ def set_layout(shelf_id: int, data: LayoutIn, user=Depends(current_user), conn: 
     return regal.shelf_detail(conn, user, shelf_id)
 
 
+def _target(conn, user, share: Optional[str], path: Optional[str]):
+    """Zielordner prüfen – nur Freigaben, die der Benutzer lesen darf. Leer = keiner."""
+    from .. import inbox
+    t_share, t_path = inbox.check_target(conn, share or None, path)
+    if t_share and t_share.lower() not in {n.lower() for n in shares.user_access(conn, user)}:
+        raise HTTPException(403, f"Kein Zugriff auf die Freigabe „{t_share}“")
+    return t_share, t_path
+
+
 # --- Ordner -------------------------------------------------------------------
 
 class BinderIn(BaseModel):
@@ -181,6 +190,8 @@ class BinderIn(BaseModel):
     width: Optional[int] = Field(None, ge=1, le=3)
     notes: Optional[str] = Field(None, max_length=2000)
     tabs: Optional[List[str]] = Field(None, max_length=50, description="Register beim Anlegen, leer = „Allgemein“")
+    target_share: Optional[str] = Field(None, max_length=64, description="Zielordner fürs Einsortieren aus dem Eingang; leer = keiner")
+    target_path: Optional[str] = Field(None, max_length=2000)
 
 
 @router.post("/binders")
@@ -193,6 +204,9 @@ def create_binder(data: BinderIn, user=Depends(current_user), conn: sqlite3.Conn
     xid = conn.execute("INSERT INTO binders(board_id, title, color, width, notes, sort, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
                        (data.board_id, data.title.strip(), check_color(data.color or "#2b6cb0"), data.width or 2,
                         (data.notes or "").strip(), sort, now_utc_str())).lastrowid
+    if data.target_share:
+        t_share, t_path = _target(conn, user, data.target_share, data.target_path)
+        conn.execute("UPDATE binders SET target_share = ?, target_path = ? WHERE id = ?", (t_share, t_path, xid))
     names = [t.strip()[:40] for t in (data.tabs or []) if t and t.strip()] or [regal.DEFAULT_TAB]
     for i, name in enumerate(names):
         conn.execute("INSERT INTO tabs(binder_id, name, sort) VALUES (?, ?, ?)", (xid, name, i))
@@ -219,13 +233,18 @@ def update_binder(binder_id: int, data: BinderIn, user=Depends(current_user), co
         sets.append("width = ?"); args.append(data.width)
     if "notes" in ch:
         sets.append("notes = ?"); args.append((data.notes or "").strip())
+    if "target_share" in ch:
+        t_share, t_path = _target(conn, user, data.target_share, data.target_path)
+        sets += ["target_share = ?", "target_path = ?"]
+        args += [t_share, t_path]
     if ch.get("board_id"):
         if shelf_of(conn, "board", data.board_id) != shelf_id:
             raise HTTPException(400, "Ordner können nur innerhalb des Regals umgestellt werden")
         sets.append("board_id = ?"); args.append(data.board_id)
     if sets:
         conn.execute(f"UPDATE binders SET {', '.join(sets)}, updated_at = ? WHERE id = ?", args + [now_utc_str(), binder_id])
-        audit(conn, user["id"], "binder_updated", f"binder:{binder_id}", ", ".join(k for k in ch if k != "tabs"))
+        audit(conn, user["id"], "binder_updated", f"binder:{binder_id}", ", ".join(k for k in ch if k != "tabs") +
+              (f" (Zielordner: {ch.get('target_share') or 'keiner'}/{ch.get('target_path') or ''})" if "target_share" in ch else ""))
     return regal.binder_detail(conn, user, binder_id)
 
 
@@ -245,6 +264,8 @@ def delete_binder(binder_id: int, user=Depends(current_user), conn: sqlite3.Conn
 class TabIn(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=40)
     color: Optional[str] = Field(None, max_length=7)
+    target_share: Optional[str] = Field(None, max_length=64, description="eigener Zielordner; leer = der des Ordners")
+    target_path: Optional[str] = Field(None, max_length=2000)
 
 
 @router.post("/binders/{binder_id}/tabs")
@@ -267,6 +288,9 @@ def update_tab(tab_id: int, data: TabIn, user=Depends(current_user), conn: sqlit
         conn.execute("UPDATE tabs SET name = ? WHERE id = ?", (data.name.strip(), tab_id))
     if "color" in ch:
         conn.execute("UPDATE tabs SET color = ? WHERE id = ?", (check_color(data.color, allow_empty=True), tab_id))
+    if "target_share" in ch:
+        t_share, t_path = _target(conn, user, data.target_share, data.target_path)
+        conn.execute("UPDATE tabs SET target_share = ?, target_path = ? WHERE id = ?", (t_share, t_path, tab_id))
     if ch:
         audit(conn, user["id"], "tab_updated", f"tab:{tab_id}", str(ch))
     binder_id = conn.execute("SELECT binder_id FROM tabs WHERE id = ?", (tab_id,)).fetchone()[0]

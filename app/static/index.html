@@ -31,6 +31,7 @@
     <div class="sres hidden" id="gres"></div></div>
   <nav id="tabs">
     <button data-tab="regal">🗄️ Regal</button>
+    <button data-tab="eingang">📥 Eingang <span class="nbadge hidden" id="inBadge"></span></button>
     <button data-tab="admin" class="admin hidden">Verwaltung</button>
   </nav>
   <button class="userchip" id="userChip" data-tab="me" title="Mein Zugang"><span class="av" id="userAv"></span><span class="lbl" id="userName"></span></button>
@@ -51,6 +52,9 @@
     </div>
     <div class="err" id="regalErr"></div>
   </div>
+
+  <!-- EINGANG -->
+  <div data-page="eingang" class="page hidden"><div id="eingangMain" class="rmain"></div></div>
 
   <!-- VERWALTUNG -->
   <div data-page="admin" class="page hidden">
@@ -101,11 +105,21 @@
         <ol style="padding-left:20px;margin:6px 0">
           <li>DSM → <b>Systemsteuerung</b> → <b>Freigegebener Ordner</b> → Ordner auswählen → <b>Bearbeiten</b>.</li>
           <li>Reiter <b>Berechtigungen</b> → oben links im Auswahlfeld <b>System-interner Benutzer</b> wählen.</li>
-          <li>Bei <b>ordnerregal</b> den Haken <b>Lesen/Schreiben</b> setzen (Lesen reicht für Version 0.1) → <b>Speichern</b>.</li>
+          <li>Bei <b>ordnerregal</b> den Haken <b>Lesen/Schreiben</b> setzen (Lesen reicht zum Anzeigen; zum Einsortieren aus dem Eingang braucht das Regal Schreibrechte) → <b>Speichern</b>.</li>
           <li>Hier die Seite neu laden und die Freigabe einschalten.</li>
         </ol>
       </details>
       <div class="err" id="shErr"></div>
+    </section>
+
+    <section class="card asec" data-asec="freigaben">
+      <div class="toolbar"><h2>📥 Eingänge</h2><button class="primary mini" id="inNew">＋ Eingang</button></div>
+      <p class="muted small" style="margin-top:0">Ordner, in die dein Scanner (oder jemand per Hand) neue Dokumente legt – z. B. <code>Scans/Eingang</code>.
+        Neue Dateien erscheinen im Reiter <b>Eingang</b>; beim Einsortieren verschiebt das Regal sie in den Zielordner des Regal-Ordners.
+        Jeder sieht nur Eingänge, deren Freigabe er in DSM lesen darf; verschieben darf nur, wer dort auch schreiben darf.
+        Zum Verschieben braucht der Paketbenutzer <b>ordnerregal</b> Lesen/Schreiben auf dem Eingang und den Zielordnern.</p>
+      <div class="scroll"><table id="inTable"></table></div>
+      <div class="err" id="inErr"></div>
     </section>
 
     <section class="card asec" data-asec="einstellungen">
@@ -303,5 +317,6 @@
 <div id="sheet" class="sheet hidden" role="dialog" aria-modal="true"></div>
 <script src="static/app.js?v={{v}}"></script>
 <script src="static/regal.js?v={{v}}"></script>
+<script src="static/eingang.js?v={{v}}"></script>
 </body>
 </html>

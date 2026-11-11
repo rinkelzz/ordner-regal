@@ -45,6 +45,7 @@ function bindSwatches(card, key) {
 
 // ---------- Einstieg ----------
 async function docShow(tab, sub) {
+  if (tab === "eingang") return window.inboxShow ? inboxShow() : null;
   if (tab !== "regal") return;
   $("regalErr").textContent = "";
   try {
@@ -114,11 +115,14 @@ function renderShelf() {
     <div class="shelf">${s.boards.map(b => `<div class="board" data-board-id="${b.id}">
         <span class="blabel">${esc(b.name || "Fach")}${edit ? ` <button data-bren="${b.id}" title="Fach umbenennen">✎</button>${b.binders.length ? "" : `<button data-bdel="${b.id}" title="Leeres Fach entfernen">✕</button>`}` : ""}</span>
         ${b.binders.map(x => spineHtml(x, edit)).join("") || `<span class="bempty">${edit ? "Leeres Fach – Ordner hierher ziehen oder „＋ Ordner“" : "leer"}</span>`}
+        ${b === s.boards[s.boards.length - 1] ? `<button class="tray" data-tray title="Zum Eingang"><span class="paper"></span><span class="paper"></span><b>Eingang · <span class="trayCount">${window.E && E.count ? E.count + " neu" : "…"}</span></b></button>` : ""}
       </div>`).join("")}<div class="shelfEnd"></div></div>
     <p class="shelfHint">${edit ? "Ordner per Ziehen umstellen (auch in ein anderes Fach) · " : ""}Klick öffnet den Ordner ·
       Zahl = Dokumente, (+n) = ohne Berechtigung in DSM ausgeblendet · roter Punkt = Datei fehlt · Die Dateien bleiben in der File Station, das Regal verweist nur darauf.</p>`;
   const m = $("regalMain");
   $$(".spine", m).forEach(el => el.onclick = () => openBinder(Number(el.dataset.bid)));
+  const tray = m.querySelector("[data-tray]"); if (tray) tray.onclick = () => showTab("eingang");
+  if (window.inboxCount) inboxCount();
   const on = (sel, fn) => { const el = m.querySelector(sel); if (el) el.onclick = fn; };
   on("[data-binder]", () => binderForm(null));
   on("[data-board]", async () => { const name = prompt("Name des neuen Fachs:", "Fach " + (s.boards.length + 1)); if (name === null) return;
@@ -208,6 +212,7 @@ function binderForm(x) {
       <label class="span2">Rückenschild <input data-k="title" maxlength="60" value="${esc(x ? x.title : "")}" placeholder="z. B. Versicherungen, Steuer 2025"></label>
       ${boards ? `<label>Fach <select data-k="board">${boards.map(b => `<option value="${b.id}">${esc(b.name || "Fach")}</option>`).join("")}</select></label>` : ""}
       <label>Breite <select data-k="width"><option value="1">schmal</option><option value="2">normal</option><option value="3">breit</option></select></label>
+      <label class="span2">Zielordner für einsortierte Dateien <span class="row"><input data-k="target" readonly placeholder="noch keiner – beim Einsortieren fragt das Regal nach" style="flex:1" value="${esc(x && x.target ? targetText(x.target) : "")}"><button type="button" data-pick>Wählen …</button></span></label>
       <label class="span2">Farbe ${swatchHtml(COLORS, x ? x.color : COLORS[5], "c")}</label>
       ${x ? "" : '<label class="span2">Register (eins pro Zeile, leer = „Allgemein“) <textarea data-k="tabs" rows="3" placeholder="Kfz&#10;Hausrat&#10;Haftpflicht"></textarea></label>'}
       <label class="span2">Notiz <textarea data-k="notes" rows="2" maxlength="2000">${esc(x ? x.notes : "")}</textarea></label>
@@ -217,9 +222,17 @@ function binderForm(x) {
   card.querySelector("[data-k=width]").value = String(x ? x.width : 2);
   card.querySelector("[data-k=title]").focus();
   const color = bindSwatches(card, "c");
+  let target = x ? x.target : null, targetChanged = false;
+  card.querySelector("[data-pick]").onclick = async () => {
+    const t = await pickFolder({ title: "Zielordner des Ordners", start: target, allowNone: true });
+    if (t === null) return;
+    target = t || null; targetChanged = true;
+    card.querySelector("[data-k=target]").value = target ? targetText(target) : "";
+  };
   const v = (k) => { const el = card.querySelector(`[data-k=${k}]`); return el ? el.value : ""; };
   card.querySelector("[data-save]").onclick = busy(card, async () => {
     const body = { title: v("title").trim(), color: color(), width: Number(v("width")), notes: v("notes") };
+    if (targetChanged || (!x && target)) { body.target_share = target ? target.share : ""; body.target_path = target ? target.path : ""; }
     if (x) { R.binder = await api(`binders/${x.id}`, { method: "PATCH", body }); closeSheet(); renderBinder(); return; }
     body.board_id = Number(v("board")); body.tabs = v("tabs").split("\n").map(t => t.trim()).filter(Boolean);
     const b = await api("binders", { method: "POST", body });
@@ -302,16 +315,30 @@ function bindDocDnD(m) {
 function tabForm(t) {
   const card = sheet(`<div class="toolbar"><h2>${t ? "Register bearbeiten" : "Neues Register"}</h2><button data-x>✕</button></div>
     <div class="formgrid"><label class="span2">Name <input data-k="name" maxlength="40" value="${esc(t ? t.name : "")}"></label>
-      <label class="span2">Farbe ${swatchHtml(TAB_COLORS, t ? t.color : "", "t")}</label></div>
+      <label class="span2">Farbe ${swatchHtml(TAB_COLORS, t ? t.color : "", "t")}</label>
+      <label class="span2">Eigener Zielordner (optional) <span class="row"><input data-k="target" readonly style="flex:1"
+        placeholder="${esc(R.binder.target ? "wie der Ordner: " + targetText(R.binder.target) : "wie der Ordner")}" value="${esc(t && t.target ? targetText(t.target) : "")}"><button type="button" data-pick>Wählen …</button></span></label></div>
     <div class="row"><button class="primary" data-save>Speichern</button><button data-x>Abbrechen</button>
       ${t ? '<button data-up>↑</button><button data-down>↓</button><button class="danger" data-del style="margin-left:auto">Löschen</button>' : ""}</div>
     <div class="err" data-err></div>`, "narrow");
   card.querySelector("[data-k=name]").focus();
   const color = bindSwatches(card, "t");
+  let target = t ? t.target : null, targetChanged = false;
+  card.querySelector("[data-pick]").onclick = async () => {
+    const r = await pickFolder({ title: "Zielordner des Registers", start: target || R.binder.target, allowNone: true });
+    if (r === null) return;
+    target = r || null; targetChanged = true;
+    card.querySelector("[data-k=target]").value = target ? targetText(target) : "";
+  };
   card.querySelector("[data-save]").onclick = busy(card, async () => {
     const body = { name: card.querySelector("[data-k=name]").value.trim(), color: color() };
-    R.binder = t ? await api(`tabs/${t.id}`, { method: "PATCH", body }) : await api(`binders/${R.binder.id}/tabs`, { method: "POST", body });
-    if (!t) R.tabId = R.binder.tabs[R.binder.tabs.length - 1].id;
+    if (targetChanged) { body.target_share = target ? target.share : ""; body.target_path = target ? target.path : ""; }
+    if (t) R.binder = await api(`tabs/${t.id}`, { method: "PATCH", body });
+    else {
+      R.binder = await api(`binders/${R.binder.id}/tabs`, { method: "POST", body: { name: body.name, color: body.color } });
+      R.tabId = R.binder.tabs[R.binder.tabs.length - 1].id;
+      if (targetChanged && target) R.binder = await api(`tabs/${R.tabId}`, { method: "PATCH", body: { target_share: target.share, target_path: target.path } });
+    }
     closeSheet(); renderBinder();
   });
   if (!t) return;
@@ -584,10 +611,12 @@ async function userSharesBox(id, el) {
     if (r.mode === "admin") { el.innerHTML = '<p class="muted small" style="margin:0">📁 Vollzugriff mit eigenem Konto: alle eingeschalteten Freigaben.</p>'; return; }
     if (!r.shares.length) { el.innerHTML = '<p class="muted small" style="margin:0">📁 Noch keine Freigaben im Regal eingeschaltet.</p>'; return; }
     el.innerHTML = `<span class="small"><b>Freigaben</b> (eigenes Konto ohne DSM – hier festlegen):</span>
-      <div class="row">${r.shares.map(s => `<label class="inline small"><input type="checkbox" data-us="${esc(s.name)}" ${s.read ? "checked" : ""}> ${esc(s.name)}</label>`).join("")}
-      <button class="mini" data-uss>Freigaben speichern</button></div>`;
+      <div class="row">${r.shares.map(s => `<label class="small">${esc(s.name)} <select data-us="${esc(s.name)}"><option value="">kein Zugriff</option>
+        <option value="r" ${s.read && !s.write ? "selected" : ""}>lesen</option><option value="w" ${s.write ? "selected" : ""}>lesen &amp; schreiben</option></select></label>`).join("")}
+      <label>&nbsp;<button class="mini" data-uss>Freigaben speichern</button></label></div>
+      <span class="muted small">Schreiben braucht es, um Dateien aus dem Eingang in Zielordner zu verschieben.</span>`;
     el.querySelector("[data-uss]").onclick = async () => {
-      const shares = {}; $$("[data-us]", el).filter(c => c.checked).forEach(c => { shares[c.dataset.us] = false; });
+      const shares = {}; $$("[data-us]", el).filter(c => c.value).forEach(c => { shares[c.dataset.us] = c.value === "w"; });
       try { await api(`users/${id}/shares`, { method: "PUT", body: { shares } }); okMsg($("uErr"), "Freigaben gespeichert."); } catch (e) { $("uErr").textContent = e.message; }
     };
   } catch (e) { el.innerHTML = `<span class="err small">${esc(e.message)}</span>`; }

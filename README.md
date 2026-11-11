@@ -12,8 +12,9 @@ Regal merkt sich nur, wo sie liegen, und findet sie über ihren Fingerabdruck wi
 Wer was sieht, richtet sich nach den **Rechten in DSM**. Für zu Hause (Versicherungen, Steuer, Verträge) und fürs
 Büro (Ablage pro Kunde auf dessen NAS).
 
-> **Stand 0.1:** Regale, Fächer, Ordner und Register, Dokumente aus Freigaben ablegen, Vorschau, Schlagworte, Suche,
-> Rechte pro Regal und aus DSM, Wiederfinden verschobener Dateien – siehe [Fahrplan](#fahrplan).
+> **Stand 0.2:** Regale, Fächer, Ordner und Register, Dokumente aus Freigaben ablegen, Vorschau, Schlagworte, Suche,
+> Rechte pro Regal und aus DSM, Wiederfinden verschobener Dateien – und der **Scanner-Eingang** zum Einsortieren mit
+> Verschieben in den Zielordner. Siehe [Fahrplan](#fahrplan).
 
 ![Regal](docs/screenshots/regal.png)
 
@@ -48,6 +49,21 @@ Büro (Ablage pro Kunde auf dessen NAS).
 - **Suche** in der Kopfzeile (Taste `/`) über Titel, Dateiname, Notiz und Schlagworte; Schlagwort-Wolke zum Filtern.
 - **Wiederfinden:** Jede Nacht (oder per Knopf) prüft das Regal, ob die Dateien noch da sind. Verschobene oder
   umbenannte Dateien findet es in den eingeschalteten Freigaben über den SHA-256-Fingerabdruck wieder.
+
+### Scanner-Eingang (0.2)
+
+- **Eingänge:** Ordner, in die der Scanner speichert (z. B. `Scans/Eingang`), trägt der Admin unter
+  Verwaltung → Freigaben ein. Neue Dateien erscheinen im Reiter **📥 Eingang** (mit Zähler) und als Ablagekorb im Regal.
+- **Einsortieren:** Datei auf einen Ordnerrücken ziehen – oder Regal, Ordner und Register wählen. Titel, Datum (aus dem
+  Dateinamen oder dem Dateidatum), Schlagworte und der **neue Dateiname** (`2025-10-03 Rechnung Mediamarkt.pdf`) sind
+  vorbelegt und änderbar.
+- **Zielordner:** Jeder Regal-Ordner hat einen Zielordner in einer Freigabe, ein Register kann einen eigenen haben.
+  Beim Einsortieren wird die Datei dorthin **verschoben**. Fehlt der Zielordner, fragt das Regal nach (und merkt ihn
+  sich auf Wunsch); „Nur verknüpfen“ lässt die Datei im Scan-Ordner.
+- **Sicher:** Am Ziel wird nie überschrieben („Name (2).pdf“), verschieben darf nur, wer in DSM auf Quelle und Ziel
+  schreiben darf, und jedes Verschieben steht im Änderungsprotokoll.
+
+![Eingang](docs/screenshots/eingang.png)
 
 | Geöffneter Ordner | Dokumente ablegen |
 |---|---|
@@ -91,7 +107,7 @@ Ordner aller Benutzer) ist deshalb ausgeschlossen.
 | Version | Inhalt | Stand |
 |---|---|---|
 | **0.1** | Regale, Fächer, Ordner, Register, Ablegen aus Freigaben, Vorschau, Schlagworte, Suche, Rechte aus DSM, Wiederfinden | ✅ |
-| **0.2** | **Scanner-Eingang:** Ordner (z. B. `Scans/Eingang`) überwachen, Eingangsfach im Regal, Einsortieren per Ziehen auf den Ordnerrücken – die Datei wird dabei in den **Zielordner** des Regal-Ordners verschoben | geplant |
+| **0.2** | **Scanner-Eingang:** Eingangsordner, Einsortieren per Ziehen auf den Ordnerrücken, Verschieben in den **Zielordner** von Ordner/Register, Dateiname-Vorschlag | ✅ |
 | **0.3** | **Volltextsuche** in PDFs (Text mit pypdf, Index in SQLite FTS5) | geplant |
 | **0.4** | **Fristen & Wiedervorlage** (Kündigungsfrist, Ablaufdatum) mit Mail-Erinnerung, Fristen-Übersicht | geplant |
 
@@ -120,12 +136,13 @@ aus der Dokumente ins Regal sollen:
 
 1. **Systemsteuerung → Freigegebener Ordner** → Ordner auswählen → **Bearbeiten → Berechtigungen**.
 2. Oben links im Auswahlfeld **System-interner Benutzer** wählen → bei `ordnerregal` **Lesen/Schreiben** setzen
-   (für 0.1 reicht Lesen; ab 0.2 braucht das Einsortieren aus dem Scanner-Eingang Schreibrechte).
+   (Lesen reicht zum Anzeigen; das Einsortieren aus dem Scanner-Eingang braucht Schreibrechte auf Eingang und Zielordner).
 3. In der App unter **Verwaltung → Freigaben** die Freigabe einschalten.
 
 ![Freigaben](docs/screenshots/freigaben.png)
 
-Danach entscheidet DSM, welche Benutzer die Dokumente sehen (siehe [Rechte](#rechte)).
+Danach entscheidet DSM, welche Benutzer die Dokumente sehen (siehe [Rechte](#rechte)). Darunter trägst du die
+**Eingänge** ein, z. B. den Ordner, in den dein Scanner per SMB/FTP speichert.
 
 ## Updates über das Paket-Zentrum
 
@@ -222,8 +239,9 @@ The user interface is German.
 - 0.1: shelves, boards, binders (drag & drop), tabs, filing from shared folders with a file picker, PDF/image preview,
   tags, search, per-shelf rights plus DSM share permissions, nightly file check and relinking, DSM window with single
   sign-on, nightly backups, updates through Package Center, audit log.
-- Planned: 0.2 scanner inbox (watch a folder, file by dragging onto a binder, move the file into the binder's target
-  folder), 0.3 full-text search in PDFs, 0.4 deadlines and follow-ups with e-mail reminders.
+- 0.2: scanner inbox – watched folders, drag a file onto a binder spine, it is moved into the binder's (or tab's)
+  target folder with a suggested file name; never overwrites, requires DSM write permission on source and target.
+- Planned: 0.3 full-text search in PDFs, 0.4 deadlines and follow-ups with e-mail reminders.
 
 Install: download the `.spk` from [Releases](https://github.com/rinkelzz/ordner-regal/releases) →
 Package Center → Manual Install, then grant the system user `ordnerregal` access to your shared folders.

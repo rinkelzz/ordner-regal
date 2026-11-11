@@ -185,9 +185,29 @@ CREATE INDEX IF NOT EXISTS idx_doctags_tag ON document_tags(tag_id);
 """)
 
 
+def _m3_eingang(conn: sqlite3.Connection) -> None:
+    """Version 0.2: Scanner-Eingänge, Zielordner pro Ordner und Register."""
+    _run(conn, """
+CREATE TABLE IF NOT EXISTS inbox_sources (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    share       TEXT NOT NULL COLLATE NOCASE,
+    relpath     TEXT NOT NULL DEFAULT '',
+    name        TEXT NOT NULL,
+    active      INTEGER NOT NULL DEFAULT 1,
+    created_at  TEXT NOT NULL,
+    UNIQUE (share, relpath)
+);
+ALTER TABLE binders ADD COLUMN target_share TEXT;
+ALTER TABLE binders ADD COLUMN target_path TEXT;
+ALTER TABLE tabs ADD COLUMN target_share TEXT;
+ALTER TABLE tabs ADD COLUMN target_path TEXT
+""")
+
+
 MIGRATIONS: Dict[int, Callable[[sqlite3.Connection], None]] = {
     1: _m1_basis,
     2: _m2_regal,
+    3: _m3_eingang,
 }
 SCHEMA_VERSION = max(MIGRATIONS)
 

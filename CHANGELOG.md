@@ -2,6 +2,22 @@
 
 Alle nennenswerten Änderungen an diesem Projekt. Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.2.0] – 2026-11-11
+
+### Neu: Scanner-Eingang
+- **Eingänge:** Unter Verwaltung → Freigaben trägst du Ordner ein, in die der Scanner speichert (z. B. `Scans/Eingang`).
+  Neue Dateien erscheinen im neuen Reiter **📥 Eingang** mit Zähler und als Ablagekorb unten im Regal. Jeder sieht nur
+  Eingänge, deren Freigabe er in DSM lesen darf.
+- **Einsortieren** per Ziehen auf einen Ordnerrücken im Mini-Regal oder über Regal/Ordner/Register. Titel, Datum (aus
+  dem Dateinamen oder dem Dateidatum), Schlagworte und ein **neuer Dateiname** („Datum Titel.pdf“) sind vorbelegt
+  und änderbar.
+- **Zielordner** pro Regal-Ordner, optional abweichend pro Register. Beim Einsortieren wird die Datei dorthin
+  verschoben. Ohne Zielordner fragt das Regal nach – mit „als Zielordner merken“ und neuem Unterordner – oder
+  verknüpft die Datei nur.
+- **Sicheres Verschieben:** nie überschreiben („Name (2).pdf“), atomar auf demselben Volume, kopieren + löschen
+  zwischen Volumes. Nur mit DSM-Schreibrecht auf Quelle und Ziel; jedes Verschieben steht im Änderungsprotokoll.
+- **Eigene Konten:** Freigaben pro Benutzer jetzt mit „lesen“ oder „lesen & schreiben“.
+
 ## [0.1.1] – 2026-11-11
 
 ### Verbessert
@@ -32,5 +48,6 @@ Erste Version.
   Zwei-Faktor-Code, vier Designs, Name und Logo, nächtliche Datensicherung, Updates übers Paket-Zentrum,
   Änderungsprotokoll mit CSV-Export, Port änderbar, Testmail über eigenen SMTP-Server.
 
+[0.2.0]: https://github.com/rinkelzz/ordner-regal/releases/tag/v0.2.0
 [0.1.1]: https://github.com/rinkelzz/ordner-regal/releases/tag/v0.1.1
 [0.1.0]: https://github.com/rinkelzz/ordner-regal/releases/tag/v0.1.0

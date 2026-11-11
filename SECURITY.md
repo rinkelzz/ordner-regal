@@ -55,8 +55,14 @@ Unterstützt wird jeweils die neueste Version unter [Releases](https://github.co
 ## Zugriff auf Dateien
 
 - **Nur Verweise:** Das Regal speichert Freigabe + relativen Pfad + Fingerabdruck (SHA-256). Es lädt keine Dokumente
-  hoch, ändert, verschiebt oder löscht in 0.1 keine Dateien. Ein Dokument aus dem Regal zu entfernen lässt die Datei
-  auf der NAS unberührt.
+  hoch und ändert oder löscht keine Dateien. Ein Dokument aus dem Regal zu entfernen lässt die Datei auf der NAS
+  unberührt.
+- **Verschieben (nur Scanner-Eingang, ab 0.2):** Einzige Stelle, an der das Regal Dateien bewegt. Nur Dateien, die
+  direkt in einem eingetragenen Eingang liegen; Ziel nur ein Ordner in einer eingeschalteten Freigabe. Verlangt
+  DSM-Schreibrecht des Benutzers auf Quelle und Ziel und Schreibrecht des Paketbenutzers. Am Ziel wird nie
+  überschrieben: auf demselben Volume über einen harten Link (schlägt fehl, wenn das Ziel existiert) und danach
+  Löschen des Originals, sonst exklusives Anlegen + Kopieren + Löschen. Dateinamen werden bereinigt (keine Pfadteile,
+  keine Sonderzeichen, Endung bleibt). Neue Unterordner nur mit Schreibrecht. Alles steht im Änderungsprotokoll.
 - **Nur eingeschaltete Freigaben:** Der Admin wählt unter Verwaltung → Freigaben aus, welche freigegebenen Ordner
   das Regal benutzt. Zusätzlich muss der Paketbenutzer `ordnerregal` in DSM Zugriff darauf haben. `homes`
   (persönliche Ordner aller Benutzer) und technische Freigaben (z. B. `docker`, `web_packages`) sind ausgeschlossen.

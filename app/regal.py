@@ -151,10 +151,12 @@ def binder_detail(conn: sqlite3.Connection, user, binder_id: int) -> dict:
                               "WHERE fi.tab_id = ? AND NOT (" + cond + ")", [t["id"]] + args).fetchone()[0]
         tags = doc_tags(conn, [r["id"] for r in rows])
         tabs.append({"id": t["id"], "name": t["name"], "color": t["color"], "hidden": hidden,
+                     "target": {"share": t["target_share"], "path": t["target_path"] or ""} if t["target_share"] else None,
                      "docs": [doc_out(conn, r, tags) for r in rows]})
     return {"id": x["id"], "title": x["title"], "color": x["color"], "width": x["width"], "notes": x["notes"],
             "board_id": x["board_id"], "board_name": x["board_name"], "shelf": {"id": shelf["id"], "name": shelf["name"]},
-            "right": right, "tabs": tabs}
+            "right": right, "tabs": tabs,
+            "target": {"share": x["target_share"], "path": x["target_path"] or ""} if x["target_share"] else None}
 
 
 def get_or_create_file(conn: sqlite3.Connection, share: str, relpath: str) -> sqlite3.Row:

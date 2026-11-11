@@ -71,8 +71,8 @@ const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { ret
                 set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* egal */ } } };
 
 // ---------- Start, Anmeldung, Reiter ----------
-const TABS = ["regal", "admin", "me"];
-const DOC_TABS = ["regal"];
+const TABS = ["regal", "eingang", "admin", "me"];
+const DOC_TABS = ["regal", "eingang"];
 const firstTab = () => "regal";
 function showLogin() {
   $("appView").classList.add("hidden"); $("loginView").classList.remove("hidden");
@@ -112,6 +112,7 @@ async function start() {
   showMe();
   $("httpWarn").classList.toggle("hidden", !state.me.insecure_http);
   applyMode();
+  if (window.inboxCount) inboxCount();
   const [wanted, sec] = ((location.hash || "").slice(1) || store.get("tab") || firstTab()).split("/");
   if (sec && wanted === "admin") store.set("asec", sec);
   await showTab(TABS.includes(wanted) && (wanted !== "admin" || isAdmin()) ? wanted : firstTab(), wanted === "admin" ? "" : sec);
@@ -157,6 +158,7 @@ async function loadAdmin() {
   showUsers();
   jobs.push(initAudit().catch(e => { $("alErr").textContent = e.message; }));
   if (window.loadSharesAdmin) jobs.push(loadSharesAdmin().catch(e => { $("shErr").textContent = e.message; }));
+  if (window.loadInboxSources) jobs.push(loadInboxSources().catch(e => { $("inErr").textContent = e.message; }));
   jobs.push(loadProxy().catch(e => { $("pxErr").textContent = e.message; }));
   await Promise.all(jobs);
 }

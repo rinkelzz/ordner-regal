@@ -212,7 +212,7 @@ def mail_test(data: MailTestIn, admin=Depends(admin_user), conn: sqlite3.Connect
 AUDIT_CATEGORIES = {"regal": "Regal & Ordner", "dokumente": "Dokumente", "anmeldung": "Anmeldung", "benutzer": "Benutzer",
                     "einstellungen": "Einstellungen", "sicherung": "Datensicherung"}
 TARGET_KINDS = {"shelf": "Regal", "board": "Fach", "binder": "Ordner", "tab": "Register", "doc": "Dokument", "share": "Freigabe",
-                "tag": "Schlagwort"}
+                "tag": "Schlagwort", "inbox": "Eingang"}
 AUDIT_ACTIONS = {
     "shelf_created": ("regal", "Regal angelegt"),
     "shelf_updated": ("regal", "Regal geändert"),
@@ -233,6 +233,9 @@ AUDIT_ACTIONS = {
     "doc_removed": ("dokumente", "Aus Ordner entfernt"),
     "doc_deleted": ("dokumente", "Dokument gelöscht"),
     "doc_relinked": ("dokumente", "Datei wiedergefunden"),
+    "doc_inbox": ("dokumente", "Aus dem Eingang einsortiert"),
+    "folder_created": ("dokumente", "Ordner in Freigabe angelegt"),
+    "inbox_source": ("einstellungen", "Eingang geändert"),
     "tag_updated": ("dokumente", "Schlagwort geändert"),
     "tag_deleted": ("dokumente", "Schlagwort gelöscht"),
     "share_updated": ("einstellungen", "Freigabe ein-/ausgeschaltet"),
