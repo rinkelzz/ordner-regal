@@ -259,6 +259,70 @@ def delete_binder(binder_id: int, user=Depends(current_user), conn: sqlite3.Conn
     return regal.shelf_detail(conn, user, shelf_id)
 
 
+class ImportIn(BaseModel):
+    board_id: int
+    share: str = Field(..., max_length=64)
+    path: str = Field("", max_length=2000)
+    title: Optional[str] = Field(None, max_length=60)
+    color: Optional[str] = Field(None, max_length=7)
+    width: Optional[int] = Field(None, ge=1, le=3)
+    sync: bool = Field(True, description="verknüpft halten: neue Dateien nachts und per Knopf übernehmen")
+
+
+@router.post("/binders/import", status_code=201)
+def import_folder(data: ImportIn, user=Depends(current_user), conn: sqlite3.Connection = Depends(get_db)):
+    """NAS-Ordner als Regal-Ordner übernehmen: Unterordner → Register, Dateien → Dokumente (Dateien bleiben, wo sie sind)."""
+    from .. import folderimport
+    shelf_id = shelf_of(conn, "board", data.board_id)
+    need_shelf(conn, user, shelf_id, edit=True)
+    share = shares.allowed(conn, user, data.share, data.path)
+    if not share:
+        raise HTTPException(403, f"Kein Zugriff auf „{data.share}/{data.path}“")
+    try:
+        p = shares.resolve(conn, share, data.path)
+    except shares.ShareError as e:
+        raise HTTPException(e.status, str(e))
+    if not p.is_dir():
+        raise HTTPException(404, "Ordner nicht gefunden")
+    rel = shares.clean_relpath(data.path)
+    title = (data.title or "").strip() or (rel.rsplit("/", 1)[-1] if rel else share)
+    sort = conn.execute("SELECT COALESCE(MAX(sort), -1) + 1 FROM binders WHERE board_id = ?", (data.board_id,)).fetchone()[0]
+    xid = conn.execute("INSERT INTO binders(board_id, title, color, width, sort, created_at, source_share, source_path, source_sync, "
+                       "source_user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                       (data.board_id, title[:60], check_color(data.color or "#2b6cb0"), data.width or 2, sort, now_utc_str(),
+                        share, rel, int(data.sync), user["id"])).lastrowid
+    audit(conn, user["id"], "binder_created", f"binder:{xid}", f"{title} – übernommen aus {share}/{rel}")
+    r = folderimport.sync(conn, xid, user)
+    if not conn.execute("SELECT 1 FROM tabs WHERE binder_id = ?", (xid,)).fetchone():  # leerer NAS-Ordner
+        conn.execute("INSERT INTO tabs(binder_id, name, sort, source_dir) VALUES (?, ?, 0, '')", (xid, regal.DEFAULT_TAB))
+    return {**r, "binder": regal.binder_detail(conn, user, xid)}
+
+
+@router.post("/binders/{binder_id}/sync")
+def sync_folder(binder_id: int, user=Depends(current_user), conn: sqlite3.Connection = Depends(get_db)):
+    from .. import folderimport
+    need_shelf(conn, user, shelf_of(conn, "binder", binder_id), edit=True)
+    r = folderimport.sync(conn, binder_id, user)
+    return {**r, "binder": regal.binder_detail(conn, user, binder_id)}
+
+
+class SourceIn(BaseModel):
+    sync: Optional[bool] = None
+    unlink: bool = False
+
+
+@router.patch("/binders/{binder_id}/source")
+def update_source(binder_id: int, data: SourceIn, user=Depends(current_user), conn: sqlite3.Connection = Depends(get_db)):
+    need_shelf(conn, user, shelf_of(conn, "binder", binder_id), edit=True)
+    if data.unlink:
+        conn.execute("UPDATE binders SET source_share = NULL, source_path = NULL, source_sync = 0 WHERE id = ?", (binder_id,))
+        audit(conn, user["id"], "binder_updated", f"binder:{binder_id}", "Verknüpfung mit NAS-Ordner gelöst (Dokumente bleiben)")
+    elif data.sync is not None:
+        conn.execute("UPDATE binders SET source_sync = ?, source_user_id = ? WHERE id = ?", (int(data.sync), user["id"], binder_id))
+        audit(conn, user["id"], "binder_updated", f"binder:{binder_id}", "Abgleich " + ("an" if data.sync else "aus"))
+    return regal.binder_detail(conn, user, binder_id)
+
+
 # --- Register -----------------------------------------------------------------
 
 class TabIn(BaseModel):

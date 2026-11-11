@@ -12,9 +12,10 @@ Regal merkt sich nur, wo sie liegen, und findet sie über ihren Fingerabdruck wi
 Wer was sieht, richtet sich nach den **Rechten in DSM**. Für zu Hause (Versicherungen, Steuer, Verträge) und fürs
 Büro (Ablage pro Kunde auf dessen NAS).
 
-> **Stand 0.4:** Regale, Fächer, Ordner und Register, Dokumente aus Freigaben ablegen, Vorschau, Schlagworte,
+> **Stand 0.5:** Regale, Fächer, Ordner und Register, Dokumente aus Freigaben ablegen, Vorschau, Schlagworte,
 > Rechte pro Regal und aus DSM, Wiederfinden verschobener Dateien, **Scanner-Eingang** mit Verschieben in den
-> Zielordner, **Volltextsuche** in PDF, Office und Textdateien und **Fristen & Wiedervorlage** mit Mail-Erinnerung.
+> Zielordner, **Volltextsuche** in PDF, Office und Textdateien, **Fristen & Wiedervorlage** mit Mail-Erinnerung und
+> **Freigaben durchsuchen / NAS-Ordner übernehmen**.
 > Siehe [Fahrplan](#fahrplan).
 
 ![Regal](docs/screenshots/regal.png)
@@ -51,6 +52,18 @@ Büro (Ablage pro Kunde auf dessen NAS).
   Schlagwort-Wolke zum Filtern.
 - **Wiederfinden:** Jede Nacht (oder per Knopf) prüft das Regal, ob die Dateien noch da sind. Verschobene oder
   umbenannte Dateien findet es in den eingeschalteten Freigaben über den SHA-256-Fingerabdruck wieder.
+
+### Freigaben durchsuchen & NAS-Ordner übernehmen (0.5)
+
+- **Freigaben durchsuchen** (Verwaltung → Freigaben): zählt die Dateien in jeder eingeschalteten Freigabe und zeigt,
+  wie viele davon **noch nicht im Regal** liegen. Läuft im Hintergrund, zusätzlich jede Nacht.
+- **📂 Aus NAS-Ordner übernehmen:** Einen Ordner wählen (z. B. `homes/tim.rinkel/Drive/Arbeit`) – er wird ein
+  Regal-Ordner, **Unterordner werden Register**, Dateien werden Dokumente (Dateien direkt im Ordner landen in
+  „Allgemein“). Die Dateien bleiben, wo sie sind.
+- **Verknüpft halten:** Neue Dateien und Unterordner kommen nachts und per „↻ Jetzt abgleichen“ dazu. Von Hand
+  umsortierte Dokumente bleiben, wo sie sind; die Verknüpfung lässt sich jederzeit lösen.
+
+![Übernommen](docs/screenshots/uebernommen.png)
 
 ### Scanner-Eingang (0.2)
 
@@ -140,6 +153,7 @@ DSM – jeder nur seinen eigenen Ordner `homes/<benutzername>`; wer in DSM die g
 | **0.2** | **Scanner-Eingang:** Eingangsordner, Einsortieren per Ziehen auf den Ordnerrücken, Verschieben in den **Zielordner** von Ordner/Register, Dateiname-Vorschlag | ✅ |
 | **0.3** | **Volltextsuche** in PDF, Office und Textdateien (auch im Eingang), Treffer mit Ausschnitt, Ergebnisseite | ✅ |
 | **0.4** | **Fristen & Wiedervorlage** mit Wiederholung, Empfängern pro Frist, Mails vorher/am Tag/nachfassen, Sammelmail | ✅ |
+| **0.5** | **Freigaben durchsuchen** (Dateien / noch nicht im Regal), **NAS-Ordner übernehmen** mit Abgleich | ✅ |
 
 ## Installation auf der Synology
 
@@ -277,6 +291,8 @@ The user interface is German.
 - 0.4: deadlines and follow-ups on documents (cancellation, expiry, follow-up, payment, warranty, custom), repeating
   monthly to yearly, recipients per deadline; e-mails n days before, on the day, follow-ups while overdue and a weekly
   digest; deadline overview with badge, dots on binder spines.
+- 0.5: scan shared folders (file counts, files not yet on the shelf); import a NAS folder as a binder (sub-folders become
+  tabs, files become documents) and keep it in sync nightly or on demand.
 
 Install: download the `.spk` from [Releases](https://github.com/rinkelzz/ordner-regal/releases) →
 Package Center → Manual Install, then grant the system user `ordnerregal` access to your shared folders.

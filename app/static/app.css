@@ -948,3 +948,8 @@ html.dark .frist, [data-theme="dark"] .frist { background: #2d2412; border-color
 .frist .fr.over small { color: var(--bad); font-weight: 600; }
 .rcpts { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 6px 0 8px; }
 @media (max-width: 760px) { .dlrow { grid-template-columns: 1fr; } .dueList { display: none; } }
+
+/* ===================== Durchsuchen & Übernehmen (0.5) ===================== */
+.srcinfo { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; font-size: 13px; background: var(--bg); border: 1px dashed var(--line);
+           border-radius: 8px; padding: 6px 10px; margin-bottom: 8px; }
+.srcinfo b { word-break: break-all; }

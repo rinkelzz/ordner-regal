@@ -106,8 +106,20 @@ def doc_file(doc_id: int, inline: bool = False, user=Depends(current_user), conn
 
 @router.get("/admin/shares")
 def admin_shares(admin=Depends(admin_user), conn: sqlite3.Connection = Depends(get_db)):
+    from .. import sharescan
     missing = conn.execute("SELECT COUNT(*) FROM files WHERE missing_since IS NOT NULL").fetchone()[0]
-    return {"shares": shares.all_shares(conn), "missing_files": missing}
+    return {"shares": shares.all_shares(conn), "missing_files": missing, "scan": sharescan.state()}
+
+
+@router.post("/admin/shares/scan")
+def scan_shares(admin=Depends(admin_user), conn: sqlite3.Connection = Depends(get_db)):
+    """Freigaben durchsuchen (im Hintergrund): Dateien zählen, „noch nicht im Regal“ ermitteln – und dabei gleich
+    prüfen, ob die abgelegten Dateien noch da sind."""
+    from .. import sharescan
+    check = filecheck.check(conn)
+    sharescan.start()
+    audit(conn, admin["id"], "shares_scanned", "", "Freigaben durchsucht")
+    return {**admin_shares(admin, conn), "check": check}
 
 
 class ShareIn(BaseModel):

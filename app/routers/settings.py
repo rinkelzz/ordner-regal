@@ -259,6 +259,8 @@ AUDIT_ACTIONS = {
     "tag_updated": ("dokumente", "Schlagwort geändert"),
     "tag_deleted": ("dokumente", "Schlagwort gelöscht"),
     "share_updated": ("einstellungen", "Freigabe ein-/ausgeschaltet"),
+    "shares_scanned": ("einstellungen", "Freigaben durchsucht"),
+    "binder_synced": ("regal", "Ordner mit NAS abgeglichen"),
     "deadline_created": ("fristen", "Frist angelegt"),
     "deadline_updated": ("fristen", "Frist geändert"),
     "deadline_deleted": ("fristen", "Frist gelöscht"),

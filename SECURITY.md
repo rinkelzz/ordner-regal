@@ -97,6 +97,10 @@ Unterstützt wird jeweils die neueste Version unter [Releases](https://github.co
   Benutzer bekommen Erinnerungen nur, solange sie das Dokument sehen dürfen (wird bei jedem Versand neu geprüft).
   Freie Mailadressen bekommen Titel, Frist, Ablageort und Notiz des Dokuments – nie die Datei selbst. Mails gehen nur
   über den eingetragenen SMTP-Server; Betreffzeilen werden von Zeilenumbrüchen bereinigt.
+- **NAS-Ordner übernehmen (ab 0.5):** nur mit Bearbeiten-Recht am Regal und DSM-Leserecht auf den Ordner (in `homes`
+  nur im eigenen Ordner). Der nächtliche Abgleich läuft mit den Rechten der Person, die übernommen hat – verliert sie
+  das Recht am Regal oder in DSM, wird nicht mehr abgeglichen. Die Dokumente sieht trotzdem jeder nur nach seinen
+  eigenen Rechten. „Freigaben durchsuchen“ zeigt nur Zahlen und nur Admins.
 - **Rechte am Regal** werden bei jeder Schnittstelle geprüft (auch wenn die Oberfläche Knöpfe ohnehin ausblendet):
   Ansehen reicht nicht zum Ablegen, Umstellen oder Löschen; Regale anlegen und löschen nur mit Vollzugriff.
 

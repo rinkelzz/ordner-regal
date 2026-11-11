@@ -85,9 +85,14 @@ def index_pending(conn: sqlite3.Connection, max_files: int = 200) -> int:
         except OSError:
             continue
         if f["text_status"] is not None and f["text_mtime"] == mtime:
+            if f["sha256"] is None and f["size"] <= shares.HASH_LIMIT:  # z. B. aus „NAS-Ordner übernehmen“
+                conn.execute("UPDATE files SET sha256 = ? WHERE id = ?", (shares.sha256_of(path), f["id"]))
+                done += 1
             continue  # unverändert
         status, text = textextract.extract(path)
         store_file_text(conn, f["id"], status, text, mtime)
+        if f["sha256"] is None and f["mtime"] == mtime and f["size"] <= shares.HASH_LIMIT:
+            conn.execute("UPDATE files SET sha256 = ? WHERE id = ?", (shares.sha256_of(path), f["id"]))
         if f["mtime"] != mtime:  # Datei wurde geändert: Größe und Fingerabdruck auffrischen
             conn.execute("UPDATE files SET mtime = ?, size = ?, sha256 = ? WHERE id = ?",
                          (mtime, path.stat().st_size, shares.sha256_of(path), f["id"]))

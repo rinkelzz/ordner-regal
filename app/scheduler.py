@@ -62,6 +62,11 @@ def _filecheck_due() -> None:
         set_setting(conn, "filecheck_last_day", today)
         r = filecheck.check(conn)
         print(f"[ordnerregal] Dateiprüfung: {r}", flush=True)
+        from . import folderimport, sharescan
+        s = folderimport.sync_all(conn)
+        if s:
+            print(f"[ordnerregal] Abgleich verknüpfter Ordner: {s}", flush=True)
+        sharescan.run(conn)
     finally:
         conn.close()
 

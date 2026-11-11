@@ -282,12 +282,30 @@ CREATE TABLE IF NOT EXISTS deadline_sent (
 """)
 
 
+def _m6_durchsuchen(conn: sqlite3.Connection) -> None:
+    """Version 0.5: Ergebnis „Freigaben durchsuchen“ pro Freigabe, Regal-Ordner mit NAS-Ordner verknüpfen."""
+    _run(conn, """
+ALTER TABLE shares ADD COLUMN scan_files INTEGER;
+ALTER TABLE shares ADD COLUMN scan_unfiled INTEGER;
+ALTER TABLE shares ADD COLUMN scan_at TEXT;
+ALTER TABLE shares ADD COLUMN scan_truncated INTEGER NOT NULL DEFAULT 0;
+-- Regal-Ordner, der einen NAS-Ordner abbildet (Unterordner = Register, Dateien = Dokumente)
+ALTER TABLE binders ADD COLUMN source_share TEXT;
+ALTER TABLE binders ADD COLUMN source_path TEXT;
+ALTER TABLE binders ADD COLUMN source_sync INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE binders ADD COLUMN source_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE binders ADD COLUMN source_synced_at TEXT;
+ALTER TABLE tabs ADD COLUMN source_dir TEXT
+""")
+
+
 MIGRATIONS: Dict[int, Callable[[sqlite3.Connection], None]] = {
     1: _m1_basis,
     2: _m2_regal,
     3: _m3_eingang,
     4: _m4_volltext,
     5: _m5_fristen,
+    6: _m6_durchsuchen,
 }
 SCHEMA_VERSION = max(MIGRATIONS)
 

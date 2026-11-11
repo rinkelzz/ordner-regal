@@ -182,10 +182,12 @@ def binder_detail(conn: sqlite3.Connection, user, binder_id: int) -> dict:
     return {"id": x["id"], "title": x["title"], "color": x["color"], "width": x["width"], "notes": x["notes"],
             "board_id": x["board_id"], "board_name": x["board_name"], "shelf": {"id": shelf["id"], "name": shelf["name"]},
             "right": right, "tabs": tabs,
-            "target": {"share": x["target_share"], "path": x["target_path"] or ""} if x["target_share"] else None}
+            "target": {"share": x["target_share"], "path": x["target_path"] or ""} if x["target_share"] else None,
+            "source": {"share": x["source_share"], "path": x["source_path"] or "", "sync": bool(x["source_sync"]),
+                       "synced_at": x["source_synced_at"]} if x["source_share"] else None}
 
 
-def get_or_create_file(conn: sqlite3.Connection, share: str, relpath: str) -> sqlite3.Row:
+def get_or_create_file(conn: sqlite3.Connection, share: str, relpath: str, hash_now: bool = True) -> sqlite3.Row:
     path = shares.resolve(conn, share, relpath)
     if not path.is_file():
         raise HTTPException(404, "Datei nicht gefunden")
@@ -199,7 +201,8 @@ def get_or_create_file(conn: sqlite3.Connection, share: str, relpath: str) -> sq
                          (st.st_size, st.st_mtime, shares.sha256_of(path), now_utc_str(), row["id"]))
         return conn.execute("SELECT * FROM files WHERE id = ?", (row["id"],)).fetchone()
     cur = conn.execute("INSERT INTO files(share, relpath, size, mtime, sha256, mime, checked_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                       (share_name, rel, st.st_size, st.st_mtime, shares.sha256_of(path), shares.guess_mime(path.name), now_utc_str()))
+                       (share_name, rel, st.st_size, st.st_mtime, shares.sha256_of(path) if hash_now else None,
+                        shares.guess_mime(path.name), now_utc_str()))
     return conn.execute("SELECT * FROM files WHERE id = ?", (cur.lastrowid,)).fetchone()
 
 

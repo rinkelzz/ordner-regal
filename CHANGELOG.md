@@ -2,6 +2,19 @@
 
 Alle nennenswerten Änderungen an diesem Projekt. Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.5.0] – 2026-11-11
+
+### Neu
+- **Freigaben durchsuchen** (Verwaltung → Freigaben, vorher „Dateien jetzt prüfen“): zählt im Hintergrund die Dateien
+  jeder eingeschalteten Freigabe und zeigt „Dateien“, „noch nicht im Regal“ und „im Regal“ – mit Fortschritt.
+  Prüft dabei wie bisher die abgelegten Dateien. Läuft zusätzlich jede Nacht.
+- **📂 NAS-Ordner übernehmen** (im Regal „Aus NAS-Ordner“ oder in der Freigaben-Liste „Übernehmen …“): Ein Ordner
+  wird ein Regal-Ordner, seine Unterordner werden Register, alle Dateien Dokumente (Dateien direkt im Ordner →
+  „Allgemein“, tiefere Unterordner → Register ihres obersten Unterordners). Die Dateien bleiben, wo sie sind.
+- **Verknüpft halten:** Neue Dateien und Unterordner kommen nachts und per „↻ Jetzt abgleichen“ dazu – mit den Rechten
+  der Person, die übernommen hat. Abgleich ein-/ausschaltbar, Verknüpfung lösbar (Dokumente bleiben).
+- Fingerabdrücke großer Mengen übernommener Dateien werden im Hintergrund berechnet (Übernehmen bleibt schnell).
+
 ## [0.4.0] – 2026-11-11
 
 ### Neu: Fristen & Wiedervorlage
@@ -101,6 +114,7 @@ Erste Version.
   Zwei-Faktor-Code, vier Designs, Name und Logo, nächtliche Datensicherung, Updates übers Paket-Zentrum,
   Änderungsprotokoll mit CSV-Export, Port änderbar, Testmail über eigenen SMTP-Server.
 
+[0.5.0]: https://github.com/rinkelzz/ordner-regal/releases/tag/v0.5.0
 [0.4.0]: https://github.com/rinkelzz/ordner-regal/releases/tag/v0.4.0
 [0.3.1]: https://github.com/rinkelzz/ordner-regal/releases/tag/v0.3.1
 [0.3.0]: https://github.com/rinkelzz/ordner-regal/releases/tag/v0.3.0

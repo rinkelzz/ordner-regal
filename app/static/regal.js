@@ -174,7 +174,7 @@ function renderShelf() {
   $("regalMain").innerHTML = `
     <div class="rtitle"><h2>Regal „${esc(s.name)}“ ${edit ? "" : '<span class="tag">nur ansehen</span>'}</h2>
       <div class="row">${isAdmin() ? '<button data-acc title="Wer darf dieses Regal sehen oder bearbeiten?">👥 Rechte</button>' : ""}
-        ${edit ? '<button data-ren>Umbenennen</button><button data-board>＋ Fach</button><button class="primary" data-binder>＋ Ordner</button>' : ""}
+        ${edit ? '<button data-ren>Umbenennen</button><button data-board>＋ Fach</button><button data-import title="Einen NAS-Ordner mit Unterordnern als Regal-Ordner übernehmen">📂 Aus NAS-Ordner</button><button class="primary" data-binder>＋ Ordner</button>' : ""}
         ${isAdmin() ? '<button class="danger" data-del title="Regal löschen">🗑</button>' : ""}</div></div>
     <div class="shelf">${s.boards.map(b => `<div class="board" data-board-id="${b.id}">
         <span class="blabel">${esc(b.name || "Fach")}${edit ? ` <button data-bren="${b.id}" title="Fach umbenennen">✎</button>${b.binders.length ? "" : `<button data-bdel="${b.id}" title="Leeres Fach entfernen">✕</button>`}` : ""}</span>
@@ -189,6 +189,7 @@ function renderShelf() {
   if (window.inboxCount) inboxCount();
   const on = (sel, fn) => { const el = m.querySelector(sel); if (el) el.onclick = fn; };
   on("[data-binder]", () => binderForm(null));
+  on("[data-import]", () => importFolder(null));
   on("[data-board]", async () => { const name = prompt("Name des neuen Fachs:", "Fach " + (s.boards.length + 1)); if (name === null) return;
     R.shelf = await api(`shelves/${s.id}/boards`, { method: "POST", body: { name } }); renderShelf(); });
   on("[data-ren]", async () => { const name = prompt("Neuer Name des Regals:", s.name); if (!name) return;
@@ -329,6 +330,11 @@ function renderBinder() {
         <div class="crumb"><a data-shelf>Regal ${esc(b.shelf.name)}</a> › <a data-back2>${esc(b.title)}</a> › <b>${esc(t.name)}</b>
           ${edit ? `<button class="mini" data-tedit style="margin-left:6px">Register bearbeiten</button>` : ""}</div>
         ${b.notes ? `<p class="bnote">${esc(b.notes)}</p>` : ""}
+        ${b.source ? `<div class="srcinfo">📂 Verknüpft mit <b>/${esc(b.source.share)}${b.source.path ? "/" + esc(b.source.path) : ""}</b>
+          <span class="muted">· ${b.source.sync ? "Abgleich an" : "Abgleich aus"}${b.source.synced_at ? " · zuletzt " + fmtDT(b.source.synced_at) : ""}</span>
+          ${edit ? `<span class="row"><button class="mini" data-sync>↻ Jetzt abgleichen</button>
+            <button class="mini" data-synctoggle>${b.source.sync ? "Abgleich aus" : "Abgleich an"}</button>
+            <button class="mini" data-unlink title="Dokumente bleiben im Ordner">Verknüpfung lösen</button></span>` : ""}</div>` : ""}
         ${t.docs.length ? `<div class="scroll"><table class="docs"><thead><tr><th>Dokument</th><th>Datum</th><th>Schlagworte</th></tr></thead><tbody>${t.docs.map(d => `
           <tr data-doc="${d.id}" class="${d.id === R.docId ? "sel" : ""} ${d.missing ? "missing" : ""}">
             <td><div style="display:flex">${icoFor(d.mime, d.filename)}<div><b>${esc(d.title)}</b>${d.missing ? ' <span class="tag warn" title="Datei verschoben oder gelöscht">fehlt</span>' : ""}
@@ -348,6 +354,16 @@ function renderBinder() {
   on("[data-file]", () => filePicker(t.id));
   on("[data-newtab]", () => tabForm(null));
   on("[data-tedit]", () => tabForm(t));
+  on("[data-sync]", async () => {
+    try { const r = await api(`binders/${b.id}/sync`, { method: "POST" }); R.binder = r.binder; renderBinder();
+      $("regalErr").innerHTML = `<span class="ok">Abgeglichen: ${r.added} neue Dokument(e)${r.new_tabs ? `, ${r.new_tabs} neue Register` : ""}.</span>`; }
+    catch (e) { $("regalErr").textContent = e.message; }
+  });
+  on("[data-synctoggle]", async () => { R.binder = await api(`binders/${b.id}/source`, { method: "PATCH", body: { sync: !b.source.sync } }); renderBinder(); });
+  on("[data-unlink]", async () => {
+    if (!confirm("Verknüpfung mit dem NAS-Ordner lösen? Die Dokumente bleiben im Regal-Ordner, neue Dateien kommen aber nicht mehr automatisch dazu.")) return;
+    R.binder = await api(`binders/${b.id}/source`, { method: "PATCH", body: { unlink: true } }); renderBinder();
+  });
   $$("[data-tab]", m).forEach(el => el.onclick = () => { R.tabId = Number(el.dataset.tab); R.docId = null; renderBinder(); });
   $$("[data-doc]", m).forEach(el => el.onclick = () => { if (justDragged()) return; R.docId = Number(el.dataset.doc); $$("[data-doc]", m).forEach(r => r.classList.toggle("sel", r === el)); showDoc(); });
   if (edit) bindDocDnD(m);
@@ -696,33 +712,89 @@ $("ftReindex").onclick = async () => {
 };
 
 // ---------- Verwaltung: Freigaben ----------
+const fmtN = (n) => n == null ? "–" : Number(n).toLocaleString("de-DE");
+let scanTimer = null;
 async function loadSharesAdmin(data) {
   const r = data || await api("admin/shares");
-  $("shTable").innerHTML = r.shares.length ? `<thead><tr><th>Im Regal</th><th>Freigabe</th><th>Pfad</th><th>Zugriff des Regals</th><th class="num">Dokumente</th></tr></thead><tbody>` +
-    r.shares.map(s => `<tr><td><input type="checkbox" data-sh="${esc(s.name)}" ${s.enabled ? "checked" : ""} ${!s.readable && !s.enabled ? "disabled" : ""}></td>
+  // eingeschaltete zuerst, dann lesbare, dann der Rest
+  const rows = r.shares.slice().sort((a, b) => (b.enabled - a.enabled) || (b.readable - a.readable) || a.name.localeCompare(b.name, "de"));
+  $("shTable").innerHTML = rows.length ? `<thead><tr><th>Im Regal</th><th>Freigabe</th><th>Pfad</th><th>Zugriff des Regals</th>
+      <th class="num" title="Ergebnis von „Freigaben durchsuchen“">Dateien</th><th class="num">noch nicht im Regal</th><th class="num">im Regal</th><th></th></tr></thead><tbody>` +
+    rows.map(s => `<tr class="${s.enabled ? "" : "inactive"}"><td><input type="checkbox" data-sh="${esc(s.name)}" ${s.enabled ? "checked" : ""} ${!s.readable && !s.enabled ? "disabled" : ""}></td>
       <td><b>${esc(s.name)}</b></td><td class="mono small">${esc(s.path)}</td>
       <td>${!s.exists ? '<span class="tag off">nicht gefunden</span>' : s.writable ? '<span class="ok">lesen &amp; schreiben</span>'
         : s.readable ? "nur lesen" : '<span class="tag warn">kein Zugriff</span> <span class="muted small">siehe Anleitung unten</span>'}</td>
-      <td class="num">${s.files}</td></tr>`).join("") + "</tbody>"
+      <td class="num">${s.enabled ? fmtN(s.scan_files) + (s.scan_truncated ? "+" : "") : ""}</td>
+      <td class="num">${s.enabled && s.scan_unfiled != null ? `<b>${fmtN(s.scan_unfiled)}</b>` : ""}</td>
+      <td class="num">${fmtN(s.files)}</td>
+      <td>${s.enabled && s.scan_unfiled ? `<button class="mini" data-imp="${esc(s.name)}" title="Einen Ordner daraus ins Regal übernehmen">📂 Übernehmen …</button>` : ""}</td></tr>`).join("") + "</tbody>"
     : '<tbody><tr><td class="muted">Keine freigegebenen Ordner gefunden.</td></tr></tbody>';
-  $("shInfo").innerHTML = r.missing_files ? `<span class="tag warn">${r.missing_files} Datei(en) fehlen</span> – verschoben, umbenannt oder gelöscht. „Dateien jetzt prüfen“ sucht sie in den eingeschalteten Freigaben.` : "";
+  const sc = r.scan || {};
+  const last = r.shares.map(s => s.scan_at).filter(Boolean).sort().pop();
+  $("shInfo").innerHTML = (sc.running ? `<span class="tag warn">Durchsuche gerade${sc.share ? " „" + esc(sc.share) + "“" : ""} …</span> ${fmtN(sc.files)} Dateien bisher`
+      : last ? `<span class="muted">Zuletzt durchsucht: ${fmtDT(last)}</span>` : '<span class="muted">Noch nicht durchsucht – „Freigaben durchsuchen“ zählt die Dateien in den eingeschalteten Freigaben.</span>') +
+    (r.missing_files ? ` · <span class="tag warn">${r.missing_files} Datei(en) fehlen</span> – verschoben, umbenannt oder gelöscht.` : "");
   if (r.shares.some(s => !s.readable)) $("shHelp").open = true;
   $$("#shTable [data-sh]").forEach(cb => cb.onchange = async () => {
     $("shErr").textContent = "";
     try { await loadSharesAdmin(await api(`admin/shares/${encodeURIComponent(cb.dataset.sh)}`, { method: "PATCH", body: { enabled: cb.checked } })); }
     catch (e) { $("shErr").textContent = e.message; cb.checked = !cb.checked; }
   });
+  $$("#shTable [data-imp]").forEach(b2 => b2.onclick = async () => {
+    await showTab("regal", "");
+    importFolder({ share: b2.dataset.imp, path: "" });
+  });
+  clearTimeout(scanTimer);
+  if (sc.running) scanTimer = setTimeout(() => loadSharesAdmin().catch(() => {}), 1500);
+  $("shCheck").disabled = !!sc.running;
 }
 window.loadSharesAdmin = loadSharesAdmin;
 $("shCheck").onclick = async () => {
   $("shErr").textContent = ""; $("shCheck").disabled = true;
   try {
-    const r = await api("admin/filecheck", { method: "POST" });
+    const r = await api("admin/shares/scan", { method: "POST" });
     await loadSharesAdmin(r);
-    okMsg($("shErr"), `Geprüft: ${r.ok} vorhanden, ${r.relinked} wiedergefunden, ${r.missing} fehlen.`);
-  } catch (e) { $("shErr").textContent = e.message; }
-  finally { $("shCheck").disabled = false; }
+    okMsg($("shErr"), `Durchsuchen läuft … Abgelegte Dateien geprüft: ${r.check.ok} vorhanden, ${r.check.relinked} wiedergefunden, ${r.check.missing} fehlen.`);
+  } catch (e) { $("shErr").textContent = e.message; $("shCheck").disabled = false; }
 };
+
+// ---------- NAS-Ordner übernehmen ----------
+async function importFolder(start) {
+  if (!R.shelves.length) await loadShelves();
+  const editable = R.shelves.filter(s => s.right === "edit");
+  if (!editable.length) { alert("Du darfst in keinem Regal Ordner anlegen."); return; }
+  const f = await pickFolder({ title: "NAS-Ordner übernehmen – Ordner wählen", start, writable: false });
+  if (!f) return;
+  const name = f.path ? f.path.split("/").pop() : f.share;
+  let shelfId = R.shelf && editable.some(s => s.id === R.shelf.id) ? R.shelf.id : editable[0].id;
+  let shelf = await api(`shelves/${shelfId}`);
+  const card = sheet(`<div class="toolbar"><h2>📂 „${esc(name)}“ übernehmen</h2><button data-x>✕</button></div>
+    <p class="small" style="margin:0">Aus <b>/${esc(f.share)}${f.path ? "/" + esc(f.path) : ""}</b> wird ein Regal-Ordner: <b>Unterordner werden Register</b>,
+      Dateien werden Dokumente (Dateien direkt im Ordner landen in „Allgemein“). Die Dateien bleiben, wo sie sind.</p>
+    <div class="formgrid">
+      <label>Regal <select data-k="shelf">${editable.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join("")}</select></label>
+      <label>Fach <select data-k="board"></select></label>
+      <label class="span2">Rückenschild <input data-k="title" maxlength="60" value="${esc(name)}"></label>
+      <label class="span2">Farbe ${swatchHtml(COLORS, COLORS[5], "c")}</label>
+      <label class="inline span2"><input type="checkbox" data-k="sync" checked> verknüpft halten – neue Dateien und Unterordner automatisch übernehmen (nachts und per Knopf)</label>
+    </div>
+    <div class="row"><button class="primary" data-save>Übernehmen</button><button data-x>Abbrechen</button></div><div class="err" data-err></div>`, "narrow");
+  const q = (k) => card.querySelector(`[data-k=${k}]`);
+  const fillBoards = () => { q("board").innerHTML = shelf.boards.map(b => `<option value="${b.id}">${esc(b.name || "Fach")}</option>`).join(""); };
+  q("shelf").value = String(shelfId); fillBoards();
+  q("shelf").onchange = async () => { shelfId = Number(q("shelf").value); shelf = await api(`shelves/${shelfId}`); fillBoards(); };
+  const color = bindSwatches(card, "c");
+  card.querySelector("[data-save]").onclick = busy(card, async () => {
+    card.querySelector("[data-save]").textContent = "Übernehme …";
+    const r = await api("binders/import", { method: "POST", body: { board_id: Number(q("board").value), share: f.share, path: f.path,
+      title: q("title").value.trim(), color: color(), sync: q("sync").checked } });
+    closeSheet(); await loadShelves();
+    await openBinder(r.binder.id);
+    $("regalErr").innerHTML = `<span class="ok">${r.added} Dokument(e) in ${r.binder.tabs.length} Register übernommen.</span>` +
+      (r.truncated ? ' <span class="muted">Sehr viele Dateien – der Rest kommt beim nächsten Abgleich.</span>' : "");
+  });
+}
+window.importFolder = importFolder;
 
 // Freigaben im Benutzer-Bearbeiten (eigene Konten)
 async function userSharesBox(id, el) {

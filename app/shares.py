@@ -98,7 +98,10 @@ def all_shares(conn: sqlite3.Connection) -> List[dict]:
     for r in conn.execute("SELECT * FROM shares ORDER BY name COLLATE NOCASE"):
         st = status(Path(r["path"]))
         files = conn.execute("SELECT COUNT(*) FROM files WHERE share = ?", (r["name"],)).fetchone()[0]
-        out.append({"name": r["name"], "path": r["path"], "enabled": bool(r["enabled"]), "files": files, **st})
+        keys = r.keys()
+        scan = {k: r[k] for k in ("scan_files", "scan_unfiled", "scan_at") if k in keys}
+        scan["scan_truncated"] = bool(r["scan_truncated"]) if "scan_truncated" in keys else False
+        out.append({"name": r["name"], "path": r["path"], "enabled": bool(r["enabled"]), "files": files, **scan, **st})
     return out
 
 

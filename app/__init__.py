@@ -1,2 +1,2 @@
 """Ordner-Regal – virtuelles Regal mit Ordnern und Registern für Dokumente auf der Synology NAS."""
-__version__ = "0.4.0"
+__version__ = "0.5.0"
