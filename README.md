@@ -37,7 +37,7 @@ Büro (Ablage pro Kunde auf dessen NAS).
 
 - **Regale** (z. B. „Privat“, „Haus & Grundstück“, „Praxis“) mit beliebig vielen **Fächern**.
 - **Ordner** mit Rückenschild, Farbe und Breite (schmal, normal, breit) – per **Ziehen umstellen**, auch in ein
-  anderes Fach. Ein roter Punkt am Rücken zeigt, wenn eine Datei fehlt.
+  anderes Fach (mit Maus, Stift oder Finger – am Touchscreen kurz gedrückt halten). Ein roter Punkt am Rücken zeigt, wenn eine Datei fehlt.
 - **Register** im Ordner (z. B. Kfz, Hausrat, Haftpflicht) mit eigener Farbe und Reihenfolge.
 - **Dokumente ablegen:** Datei-Auswahl direkt aus den freigegebenen Ordnern (mit Filter, Vorschau und Hinweis
   „im Regal“), mehrere Dateien auf einmal, mit Datum und Schlagworten. PDF, Bilder, Text, Office – alles, was in einer
@@ -113,9 +113,10 @@ Zwei Ebenen, die beide passen müssen:
 
 ![Rechte am Regal](docs/screenshots/rechte.png)
 
-Grenzen in 0.1: Das Regal prüft die Rechte **pro Freigabe**, nicht pro Unterordner. Wer in DSM einzelne Unterordner
-einer Freigabe sperrt, sollte für solche Dokumente eine eigene Freigabe nehmen. Die Freigabe `homes` (persönliche
-Ordner aller Benutzer) ist deshalb ausgeschlossen.
+Grenzen: Das Regal prüft die Rechte **pro Freigabe**, nicht pro Unterordner. Wer in DSM einzelne Unterordner einer
+Freigabe sperrt, sollte für solche Dokumente eine eigene Freigabe nehmen. Ausnahme ist **`homes`**: Dort sieht – wie in
+DSM – jeder nur seinen eigenen Ordner `homes/<benutzername>`; wer in DSM die ganze Freigabe `homes` lesen darf
+(Administratoren), sieht alle. So kann z. B. jeder seinen eigenen Scanner-Eingang in `homes/<name>/Scans` haben.
 
 ## Fahrplan
 

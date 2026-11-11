@@ -22,11 +22,10 @@ def _err(e: shares.ShareError):
     return HTTPException(e.status, str(e))
 
 
-def _need_share(conn, user, share: str) -> str:
-    access = shares.user_access(conn, user)
-    name = next((n for n in access if n.lower() == (share or "").lower()), None)
+def _need_share(conn, user, share: str, path: str = "") -> str:
+    name = shares.allowed(conn, user, share, path)
     if not name:
-        raise HTTPException(403, f"Kein Zugriff auf die Freigabe „{share}“")
+        raise HTTPException(403, f"Kein Zugriff auf „{share}{'/' + path.strip('/') if path.strip('/') else ''}“")
     return name
 
 
@@ -45,17 +44,23 @@ def _send(path, mime: str, inline: bool):
 def my_shares(user=Depends(current_user), conn: sqlite3.Connection = Depends(get_db)):
     """Freigaben, die ich im Regal benutzen darf (eingeschaltet + Rechte wie in DSM)."""
     access = shares.user_access(conn, user)
-    return [{"name": n, "can_write": w} for n, w in sorted(access.items(), key=lambda x: x[0].lower())]
+    home = shares.home_only(conn, user)
+    return [{"name": n, "can_write": w, "home": home if n.lower() == shares.HOMES else None}
+            for n, w in sorted(access.items(), key=lambda x: x[0].lower())]
 
 
 @router.get("/browse")
 def browse(share: str = Query(..., max_length=64), path: str = Query("", max_length=2000),
            user=Depends(current_user), conn: sqlite3.Connection = Depends(get_db)):
-    name = _need_share(conn, user, share)
+    name = _need_share(conn, user, share, path)
     try:
         out = shares.list_dir(conn, name, path)
     except shares.ShareError as e:
         raise _err(e)
+    home = shares.home_only(conn, user) if name.lower() == shares.HOMES else None
+    if home and not out["path"]:  # Wurzel von homes: nur der eigene Ordner, keine Dateien
+        out["dirs"] = [d for d in out["dirs"] if d["name"].lower() == home.lower()]
+        out["files"] = []
     # Schon im Regal? (Dokument-ID zum Anzeigen)
     rels = [f["path"] for f in out["files"]]
     if rels:
@@ -72,7 +77,7 @@ def browse(share: str = Query(..., max_length=64), path: str = Query("", max_len
 def browse_file(share: str = Query(..., max_length=64), path: str = Query(..., max_length=2000), inline: bool = False,
                 user=Depends(current_user), conn: sqlite3.Connection = Depends(get_db)):
     """Vorschau einer Datei vor dem Ablegen."""
-    name = _need_share(conn, user, share)
+    name = _need_share(conn, user, share, path)
     try:
         p = shares.resolve(conn, name, path)
     except shares.ShareError as e:

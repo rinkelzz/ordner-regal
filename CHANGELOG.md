@@ -2,6 +2,16 @@
 
 Alle nennenswerten Änderungen an diesem Projekt. Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.3.1] – 2026-11-11
+
+### Behoben
+- **Ziehen & Ablegen** funktionierte nicht in allen Browsern (Firefox lässt Knöpfe nicht ziehen) und gar nicht am
+  Handy/Tablet. Ordner im Regal, Dokumente auf Register und Dateien aus dem Eingang auf Ordnerrücken lassen sich jetzt
+  überall ziehen – mit Maus, Stift oder Finger (am Touchscreen kurz gedrückt halten, dann ziehen).
+- **Freigabe `homes`** lässt sich jetzt verwenden, z. B. für einen Scanner-Eingang in `homes/<benutzer>/Scans`.
+  Wie in DSM sieht dort jeder nur seinen **eigenen Ordner**; wer in DSM die ganze Freigabe `homes` lesen darf
+  (Administratoren), sieht alle. Datei-Auswahl und Zielordner starten in `homes` gleich im eigenen Ordner.
+
 ## [0.3.0] – 2026-11-11
 
 ### Neu: Volltextsuche
@@ -74,6 +84,7 @@ Erste Version.
   Zwei-Faktor-Code, vier Designs, Name und Logo, nächtliche Datensicherung, Updates übers Paket-Zentrum,
   Änderungsprotokoll mit CSV-Export, Port änderbar, Testmail über eigenen SMTP-Server.
 
+[0.3.1]: https://github.com/rinkelzz/ordner-regal/releases/tag/v0.3.1
 [0.3.0]: https://github.com/rinkelzz/ordner-regal/releases/tag/v0.3.0
 [0.2.1]: https://github.com/rinkelzz/ordner-regal/releases/tag/v0.2.1
 [0.2.0]: https://github.com/rinkelzz/ordner-regal/releases/tag/v0.2.0

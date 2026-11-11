@@ -6,6 +6,61 @@ const COLORS = ["#c53030", "#dd6b20", "#d69e2e", "#2f855a", "#2c7a7b", "#2b6cb0"
 const TAB_COLORS = ["", "#e53e3e", "#dd6b20", "#ecc94b", "#38a169", "#3182ce", "#805ad5", "#d53f8c", "#718096"];
 const fmtBytes = (b) => b >= 1048576 ? (b / 1048576).toFixed(1).replace(".", ",") + " MB" : b >= 1024 ? Math.round(b / 1024) + " KB" : b + " B";
 
+// ---------- Ziehen & Ablegen ----------
+// Mit Pointer Events statt HTML5-Drag&Drop: geht in allen Browsern (auch Firefox mit Knöpfen), im DSM-Fenster und
+// am Handy/Tablet (dort: kurz gedrückt halten, dann ziehen).
+let lastDragEnd = 0;
+const justDragged = () => Date.now() - lastDragEnd < 400;
+let touchDragging = false;
+document.addEventListener("touchmove", (e) => { if (touchDragging) e.preventDefault(); }, { passive: false });
+function pointerDrag(el, opts) {
+  el.addEventListener("contextmenu", (e) => { if (el.classList.contains("dragging")) e.preventDefault(); });
+  el.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0 || (opts.enabled && !opts.enabled())) return;
+    const touch = e.pointerType !== "mouse";
+    const sx = e.clientX, sy = e.clientY;
+    let x = sx, y = sy, started = false, ghost = null, timer = null;
+    const place = () => { if (ghost) { ghost.style.left = x + "px"; ghost.style.top = y + "px"; } };
+    const begin = () => {
+      started = true; touchDragging = touch;
+      ghost = opts.ghost ? opts.ghost() : el.cloneNode(true);
+      el.classList.add("dragging");
+      ghost.classList.add("dragghost");
+      document.body.appendChild(ghost); place();
+      if (touch && navigator.vibrate) { try { navigator.vibrate(15); } catch (err) { /* egal */ } }
+      if (opts.start) opts.start();
+    };
+    const target = () => { const t = document.elementFromPoint(x, y); return t || null; };
+    const move = (ev) => {
+      x = ev.clientX; y = ev.clientY;
+      if (!started) {
+        if (Math.hypot(x - sx, y - sy) < 8) return;
+        if (touch) { cleanup(); return; }   // Finger bewegt, bevor die Haltezeit um ist: normal scrollen
+        begin();
+      }
+      ev.preventDefault(); place();
+      if (opts.move) opts.move(x, y, target());
+    };
+    const up = () => { const was = started; const t = target(); cleanup(); if (was) { lastDragEnd = Date.now(); if (opts.drop) opts.drop(x, y, t); } };
+    const cancel = () => { const was = started; cleanup(); if (was && opts.cancel) opts.cancel(); };
+    const cleanup = () => {
+      clearTimeout(timer); touchDragging = false;
+      document.removeEventListener("pointermove", move); document.removeEventListener("pointerup", up);
+      document.removeEventListener("pointercancel", cancel);
+      if (ghost) ghost.remove();
+      el.classList.remove("dragging");
+      if (started && opts.end) opts.end();
+      started = false;
+    };
+    if (touch) timer = setTimeout(begin, 350);
+    document.addEventListener("pointermove", move, { passive: false });
+    document.addEventListener("pointerup", up);
+    document.addEventListener("pointercancel", cancel);
+  });
+}
+window.pointerDrag = pointerDrag;
+window.justDragged = justDragged;
+
 function icoFor(mime, name) {
   const ext = (name.split(".").pop() || "").toUpperCase().slice(0, 4);
   const cls = mime === "application/pdf" ? "pdf" : mime.startsWith("image/") ? "img" : mime.startsWith("text/") ? "txt"
@@ -100,7 +155,7 @@ async function openShelf(id) {
 }
 function spineHtml(x, edit) {
   const n = x.docs + (x.hidden ? ` (+${x.hidden})` : "");
-  return `<button class="spine w${x.width}" data-bid="${x.id}" ${edit ? 'draggable="true"' : ""} style="background:${esc(x.color)}"
+  return `<button class="spine w${x.width}" data-bid="${x.id}" style="background:${esc(x.color)}"
      title="${esc(x.title)} – ${x.docs} Dokumente${x.hidden ? `, ${x.hidden} ohne Berechtigung ausgeblendet` : ""}${x.missing ? `, ${x.missing} Datei(en) fehlen` : ""}">
      <span class="lb"><span>${esc(x.title)}</span></span><span class="ring"></span><span class="n">${x.width > 1 ? n + " Dok." : x.docs}</span>
      ${x.missing ? '<span class="dot"></span>' : ""}</button>`;
@@ -120,7 +175,7 @@ function renderShelf() {
     <p class="shelfHint">${edit ? "Ordner per Ziehen umstellen (auch in ein anderes Fach) · " : ""}Klick öffnet den Ordner ·
       Zahl = Dokumente, (+n) = ohne Berechtigung in DSM ausgeblendet · roter Punkt = Datei fehlt · Die Dateien bleiben in der File Station, das Regal verweist nur darauf.</p>`;
   const m = $("regalMain");
-  $$(".spine", m).forEach(el => el.onclick = () => openBinder(Number(el.dataset.bid)));
+  $$(".spine", m).forEach(el => el.onclick = () => { if (!justDragged()) openBinder(Number(el.dataset.bid)); });
   const tray = m.querySelector("[data-tray]"); if (tray) tray.onclick = () => showTab("eingang");
   if (window.inboxCount) inboxCount();
   const on = (sel, fn) => { const el = m.querySelector(sel); if (el) el.onclick = fn; };
@@ -146,30 +201,26 @@ function renderShelf() {
 }
 
 function bindShelfDnD(m) {
-  let dragged = null;
-  $$(".spine", m).forEach(el => {
-    el.addEventListener("dragstart", (e) => { dragged = el; el.classList.add("dragging"); e.dataTransfer.effectAllowed = "move";
-      try { e.dataTransfer.setData("text/plain", el.dataset.bid); } catch (err) { /* egal */ } });
-    el.addEventListener("dragend", () => { el.classList.remove("dragging"); $$(".board", m).forEach(b => b.classList.remove("dropping")); });
-  });
-  $$(".board", m).forEach(board => {
-    board.addEventListener("dragover", (e) => {
-      if (!dragged) return;
-      e.preventDefault(); board.classList.add("dropping");
-      const after = [...board.querySelectorAll(".spine:not(.dragging)")].find(s => e.clientX < s.getBoundingClientRect().left + s.offsetWidth / 2);
+  $$(".spine", m).forEach(el => pointerDrag(el, {
+    ghost: () => { const g = el.cloneNode(true); g.style.width = el.offsetWidth + "px"; g.style.height = el.offsetHeight + "px"; return g; },
+    move: (x, y, t) => {
+      const board = t && t.closest(".board");
+      $$(".board", m).forEach(b => b.classList.toggle("dropping", b === board));
+      if (!board) return;
+      const after = [...board.querySelectorAll(".spine:not(.dragging)")].find(s2 => x < s2.getBoundingClientRect().left + s2.offsetWidth / 2);
       const empty = board.querySelector(".bempty"); if (empty) empty.remove();
-      if (after) board.insertBefore(dragged, after); else board.appendChild(dragged);
-    });
-    board.addEventListener("dragleave", () => board.classList.remove("dropping"));
-    board.addEventListener("drop", async (e) => {
-      e.preventDefault(); board.classList.remove("dropping");
-      if (!dragged) return; dragged = null;
-      const layout = { boards: $$(".board", m).map(b => ({ id: Number(b.dataset.boardId), binders: $$(".spine", b).map(s => Number(s.dataset.bid)) })) };
+      if (after) board.insertBefore(el, after);
+      else { const tray = board.querySelector(".tray"); board.insertBefore(el, tray || null); }
+    },
+    drop: async () => {
+      $$(".board", m).forEach(b => b.classList.remove("dropping"));
+      const layout = { boards: $$(".board", m).map(b => ({ id: Number(b.dataset.boardId), binders: $$(".spine", b).map(s2 => Number(s2.dataset.bid)) })) };
       try { R.shelf = await api(`shelves/${R.shelf.id}/layout`, { method: "PUT", body: layout }); }
       catch (err) { $("regalErr").textContent = err.message; R.shelf = await api(`shelves/${R.shelf.id}`); }
       renderShelf();
-    });
-  });
+    },
+    cancel: () => renderShelf(),
+  }));
 }
 
 async function newShelf() {
@@ -270,7 +321,7 @@ function renderBinder() {
           ${edit ? `<button class="mini" data-tedit style="margin-left:6px">Register bearbeiten</button>` : ""}</div>
         ${b.notes ? `<p class="bnote">${esc(b.notes)}</p>` : ""}
         ${t.docs.length ? `<div class="scroll"><table class="docs"><thead><tr><th>Dokument</th><th>Datum</th><th>Schlagworte</th></tr></thead><tbody>${t.docs.map(d => `
-          <tr data-doc="${d.id}" class="${d.id === R.docId ? "sel" : ""} ${d.missing ? "missing" : ""}" ${edit ? 'draggable="true"' : ""}>
+          <tr data-doc="${d.id}" class="${d.id === R.docId ? "sel" : ""} ${d.missing ? "missing" : ""}">
             <td><div style="display:flex">${icoFor(d.mime, d.filename)}<div><b>${esc(d.title)}</b>${d.missing ? ' <span class="tag warn" title="Datei verschoben oder gelöscht">fehlt</span>' : ""}
               <div class="dpath">${esc(d.share)}/${esc(d.path)}</div></div></div></td>
             <td class="nowrap">${deDate(d.doc_date) || '<span class="muted">–</span>'}</td>
@@ -288,29 +339,34 @@ function renderBinder() {
   on("[data-newtab]", () => tabForm(null));
   on("[data-tedit]", () => tabForm(t));
   $$("[data-tab]", m).forEach(el => el.onclick = () => { R.tabId = Number(el.dataset.tab); R.docId = null; renderBinder(); });
-  $$("[data-doc]", m).forEach(el => el.onclick = () => { R.docId = Number(el.dataset.doc); $$("[data-doc]", m).forEach(r => r.classList.toggle("sel", r === el)); showDoc(); });
+  $$("[data-doc]", m).forEach(el => el.onclick = () => { if (justDragged()) return; R.docId = Number(el.dataset.doc); $$("[data-doc]", m).forEach(r => r.classList.toggle("sel", r === el)); showDoc(); });
   if (edit) bindDocDnD(m);
   showDoc();
 }
 
 function bindDocDnD(m) {
   // Dokument auf ein anderes Register ziehen = verschieben (mit Strg/Alt: zusätzlich ablegen)
-  $$("tr[data-doc]", m).forEach(tr => tr.addEventListener("dragstart", (e) => {
-    e.dataTransfer.setData("text/plain", "doc:" + tr.dataset.doc); e.dataTransfer.effectAllowed = "copyMove"; }));
-  $$(".btab[data-tab]", m).forEach(tab => {
-    tab.addEventListener("dragover", (e) => { e.preventDefault(); tab.classList.add("drop"); });
-    tab.addEventListener("dragleave", () => tab.classList.remove("drop"));
-    tab.addEventListener("drop", async (e) => {
-      e.preventDefault(); tab.classList.remove("drop");
-      const v = e.dataTransfer.getData("text/plain"); if (!v.startsWith("doc:")) return;
-      const to = Number(tab.dataset.tab), from = R.tabId; if (to === from) return;
-      try {
-        await api(`docs/${v.slice(4)}/move`, { method: "POST", body: { from_tab: from, to_tab: to, keep: e.ctrlKey || e.altKey } });
-        await openBinder(R.binder.id);
-      } catch (err) { $("regalErr").textContent = err.message; }
+  $$("tr[data-doc]", m).forEach(tr => {
+    let keep = false;
+    pointerDrag(tr, {
+      ghost: () => { const g = document.createElement("div"); g.className = "dragchip"; g.textContent = "📄 " + tr.querySelector("b").textContent; return g; },
+      start: () => { keep = false; },
+      move: (x, y, t) => { const tab = t && t.closest(".btab[data-tab]"); $$(".btab", m).forEach(b => b.classList.toggle("drop", b === tab)); },
+      drop: async (x, y, t) => {
+        $$(".btab", m).forEach(b => b.classList.remove("drop"));
+        const tab = t && t.closest(".btab[data-tab]"); if (!tab) return;
+        const to = Number(tab.dataset.tab), from = R.tabId; if (to === from) return;
+        try {
+          await api(`docs/${tr.dataset.doc}/move`, { method: "POST", body: { from_tab: from, to_tab: to, keep: keep || dragMods.copy } });
+          await openBinder(R.binder.id);
+        } catch (err) { $("regalErr").textContent = err.message; }
+      },
     });
   });
 }
+const dragMods = { copy: false };
+document.addEventListener("keydown", (e) => { if (e.key === "Control" || e.key === "Alt") dragMods.copy = true; });
+document.addEventListener("keyup", (e) => { if (e.key === "Control" || e.key === "Alt") dragMods.copy = false; });
 
 function tabForm(t) {
   const card = sheet(`<div class="toolbar"><h2>${t ? "Register bearbeiten" : "Neues Register"}</h2><button data-x>✕</button></div>
@@ -510,7 +566,9 @@ async function filePicker(tabId) {
     });
     $$("[data-peek]", q("[data-list]")).forEach(b => b.onclick = (e) => { e.preventDefault(); peek(st.share, b.dataset.peek, b.dataset.mime); });
   };
-  q("[data-share]").onchange = () => { st.share = q("[data-share]").value; st.path = ""; load(); };
+  const homeOf = (name) => (my.find(x => x.name === name) || {}).home || "";
+  if (!st.path && homeOf(st.share)) st.path = homeOf(st.share);
+  q("[data-share]").onchange = () => { st.share = q("[data-share]").value; st.path = homeOf(st.share); load(); };
   let timer; q("[data-filter]").oninput = () => { clearTimeout(timer); timer = setTimeout(() => { st.filter = q("[data-filter]").value.trim(); load(); }, 200); };
   q("[data-save]").onclick = busy(card, async () => {
     const r = await api(`tabs/${tabId}/docs`, { method: "POST", body: { files: [...st.chosen.values()], doc_date: q("[data-k=date]").value || null,

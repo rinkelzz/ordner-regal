@@ -23,9 +23,10 @@ from .timeutil import now_utc_str
 # Ordner, die DSM selbst anlegt und die nie ins Regal gehören
 HIDDEN_PREFIXES = ("@", "#", ".")
 HIDDEN_NAMES = {"@eaDir", "#recycle", "#snapshot", "@tmp", "@sharebin", "lost+found", ".DS_Store", "Thumbs.db", "desktop.ini"}
-# „homes“ enthält die persönlichen Ordner aller Benutzer. DSM regelt dort den Zugriff pro Unterordner –
-# das kann das Regal (Rechte pro Freigabe) nicht abbilden, deshalb ist „homes“ ausgeschlossen.
-EXCLUDED_SHARES = {"homes", "home", "web_packages", "docker", "ActiveBackupforBusiness", "NetBackup", "surveillance"}
+# „homes“ enthält die persönlichen Ordner aller Benutzer (homes/<benutzer>). Wie in DSM sieht dort jeder nur seinen
+# eigenen Ordner – außer wer in DSM die ganze Freigabe „homes“ lesen darf (Administratoren).
+HOMES = "homes"
+EXCLUDED_SHARES = {"home", "web_packages", "docker", "ActiveBackupforBusiness", "NetBackup", "surveillance"}
 SHARE_NAME_RE = re.compile(r"^[^/\\\x00-\x1f]{1,64}$")
 HASH_LIMIT = 1024 * 1024 * 1024  # Fingerabdruck bis 1 GB – größere Dateien werden über Name + Größe wiedergefunden
 
@@ -117,16 +118,72 @@ def store_dsm_access(conn: sqlite3.Connection, user_id: int, shares: Iterable[Tu
     conn.execute("UPDATE users SET dsm_synced_at = ? WHERE id = ?", (now_utc_str(), user_id))
 
 
-def user_access(conn: sqlite3.Connection, user) -> Dict[str, bool]:
-    """Freigabe → darf schreiben – nur eingeschaltete Freigaben, nach den Regeln oben."""
+def _raw_access(conn: sqlite3.Connection, user) -> Tuple[Dict[str, bool], Optional[str]]:
+    """(Freigabe → darf schreiben, Einschränkung für homes). Die Einschränkung ist der Benutzername, wenn der
+    Benutzer in „homes“ nur seinen eigenen Ordner sehen darf; None = ganze Freigabe."""
     enabled = {r["name"].lower(): r["name"] for r in conn.execute("SELECT name FROM shares WHERE enabled = 1")}
     if user["dsm_synced_at"]:
-        rows = conn.execute("SELECT share, can_write FROM share_access WHERE user_id = ? AND source = 'dsm'", (user["id"],))
+        rows = {r["share"].lower(): bool(r["can_write"]) for r in
+                conn.execute("SELECT share, can_write FROM share_access WHERE user_id = ? AND source = 'dsm'", (user["id"],))}
+        home_only = None
+        if HOMES not in rows and "home" in rows:  # DSM meldet dem Benutzer nur seinen Ordner „home“
+            rows[HOMES] = rows["home"]
+            home_only = user["username"]
     elif user["is_admin"]:
-        return {name: True for name in enabled.values()}
+        return {name: True for name in enabled.values()}, None
     else:
-        rows = conn.execute("SELECT share, can_write FROM share_access WHERE user_id = ? AND source = 'manual'", (user["id"],))
-    return {enabled[r["share"].lower()]: bool(r["can_write"]) for r in rows if r["share"].lower() in enabled}
+        rows = {r["share"].lower(): bool(r["can_write"]) for r in
+                conn.execute("SELECT share, can_write FROM share_access WHERE user_id = ? AND source = 'manual'", (user["id"],))}
+        home_only = user["username"]  # eigene Konten: in homes nur den Ordner mit ihrem Namen
+    access = {enabled[k]: w for k, w in rows.items() if k in enabled}
+    return access, (home_only if any(n.lower() == HOMES for n in access) else None)
+
+
+def user_access(conn: sqlite3.Connection, user) -> Dict[str, bool]:
+    """Freigabe → darf schreiben – nur eingeschaltete Freigaben, nach den Regeln oben."""
+    return _raw_access(conn, user)[0]
+
+
+def home_only(conn: sqlite3.Connection, user) -> Optional[str]:
+    return _raw_access(conn, user)[1]
+
+
+def in_own_home(relpath: str, username: str) -> bool:
+    first = (relpath or "").replace("\\", "/").strip("/").split("/", 1)[0]
+    return bool(first) and first.lower() == (username or "").lower()
+
+
+def allowed(conn: sqlite3.Connection, user, share: str, relpath: str = "", write: bool = False) -> Optional[str]:
+    """Darf der Benutzer diesen Ort sehen (bzw. dort schreiben)? Liefert den richtig geschriebenen Freigabe-Namen oder None.
+    In „homes“ mit Einschränkung: nur der eigene Ordner (die Wurzel von homes nur zum Hineinwechseln)."""
+    access, home = _raw_access(conn, user)
+    name = next((n for n in access if n.lower() == (share or "").lower()), None)
+    if not name or (write and not access[name]):
+        return None
+    if name.lower() == HOMES and home:
+        rel = (relpath or "").replace("\\", "/").strip("/")
+        if rel and not in_own_home(rel, home):
+            return None
+        if not rel and write:
+            return None
+    return name
+
+
+def doc_filter(conn: sqlite3.Connection, user) -> Tuple[str, list]:
+    """SQL-Bedingung (Tabelle f = files): Datei liegt an einem Ort, den der Benutzer lesen darf."""
+    access, home = _raw_access(conn, user)
+    names = [n.lower() for n in access if not (home and n.lower() == HOMES)]
+    parts, args = [], []
+    if names:
+        parts.append(f"lower(f.share) IN ({','.join('?' * len(names))})")
+        args += names
+    if home:
+        prefix = home.lower() + "/"
+        parts.append("(lower(f.share) = 'homes' AND substr(lower(f.relpath), 1, ?) = ?)")
+        args += [len(prefix), prefix]
+    if not parts:
+        return "0", []
+    return "(" + " OR ".join(parts) + ")", args
 
 
 def set_manual_access(conn: sqlite3.Connection, user_id: int, shares: Dict[str, bool]) -> None:

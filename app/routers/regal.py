@@ -176,8 +176,8 @@ def _target(conn, user, share: Optional[str], path: Optional[str]):
     """Zielordner prüfen – nur Freigaben, die der Benutzer lesen darf. Leer = keiner."""
     from .. import inbox
     t_share, t_path = inbox.check_target(conn, share or None, path)
-    if t_share and t_share.lower() not in {n.lower() for n in shares.user_access(conn, user)}:
-        raise HTTPException(403, f"Kein Zugriff auf die Freigabe „{t_share}“")
+    if t_share and not shares.allowed(conn, user, t_share, t_path):
+        raise HTTPException(403, f"Kein Zugriff auf „{t_share}/{t_path}“")
     return t_share, t_path
 
 
@@ -343,11 +343,10 @@ class FileIn(BaseModel):
 def file_docs(tab_id: int, data: FileIn, user=Depends(current_user), conn: sqlite3.Connection = Depends(get_db)):
     """Dateien aus einer Freigabe in ein Register legen. Die Dateien bleiben, wo sie sind."""
     need_shelf(conn, user, shelf_of(conn, "tab", tab_id), edit=True)
-    access = {n.lower() for n in shares.user_access(conn, user)}
     added, already = 0, 0
     for ref in data.files:
-        if ref.share.lower() not in access:
-            raise HTTPException(403, f"Du hast in DSM keinen Zugriff auf die Freigabe „{ref.share}“")
+        if not shares.allowed(conn, user, ref.share, ref.path):
+            raise HTTPException(403, f"Du hast in DSM keinen Zugriff auf „{ref.share}/{ref.path}“")
         try:
             f = regal.get_or_create_file(conn, ref.share, ref.path)
         except shares.ShareError as e:
@@ -490,8 +489,7 @@ def search(q: str = Query("", max_length=100), tag: Optional[int] = None, shelf_
     erlaubten Freigaben. Treffer im Text kommen mit Ausschnitt (Suchwort zwischen \\x02 und \\x03).
     Dazu Treffer im Eingang (Dateiname oder Text), wenn der Benutzer den Eingang sehen darf."""
     from .. import fulltext, inbox
-    access = shares.user_access(conn, user)
-    cond, cargs = regal.visible_doc_filter(access)
+    cond, cargs = shares.doc_filter(conn, user)
     words = fulltext.words_of(q)
     if not words and not tag:
         return {"results": [], "inbox": [], "total": 0}

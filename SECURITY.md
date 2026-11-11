@@ -64,8 +64,14 @@ Unterstützt wird jeweils die neueste Version unter [Releases](https://github.co
   Löschen des Originals, sonst exklusives Anlegen + Kopieren + Löschen. Dateinamen werden bereinigt (keine Pfadteile,
   keine Sonderzeichen, Endung bleibt). Neue Unterordner nur mit Schreibrecht. Alles steht im Änderungsprotokoll.
 - **Nur eingeschaltete Freigaben:** Der Admin wählt unter Verwaltung → Freigaben aus, welche freigegebenen Ordner
-  das Regal benutzt. Zusätzlich muss der Paketbenutzer `ordnerregal` in DSM Zugriff darauf haben. `homes`
-  (persönliche Ordner aller Benutzer) und technische Freigaben (z. B. `docker`, `web_packages`) sind ausgeschlossen.
+  das Regal benutzt. Zusätzlich muss der Paketbenutzer `ordnerregal` in DSM Zugriff darauf haben. Technische
+  Freigaben (z. B. `docker`, `web_packages`) sind ausgeschlossen.
+- **`homes` (ab 0.3.1):** Wer in DSM nur seinen eigenen Ordner sieht (DSM meldet „home“), darf im Regal nur
+  `homes/<eigener Benutzername>/…` öffnen, durchsuchen, einsortieren und dort Ordner anlegen; Dokumente aus fremden
+  Home-Ordnern bleiben ausgeblendet, auch in der Suche. Die ganze Freigabe nur, wer sie in DSM lesen darf; eigene
+  Konten ohne DSM nur den Ordner mit ihrem Benutzernamen (eigene Konten mit Vollzugriff: alle). Gibt der Admin dem
+  Paketbenutzer Zugriff auf `homes`, kann das Regal technisch alle Home-Ordner lesen – die Einschränkung setzt die App
+  durch.
 - **Pfade:** Keine absoluten Pfade, kein `..`, keine DSM-Systemordner (`@eaDir`, `#recycle`, `#snapshot` …).
   Symbolische Links, die aus der Freigabe hinausführen, werden abgelehnt (Prüfung über den echten Pfad).
 - **Rechte wie in DSM:** Für DSM-Benutzer übernimmt die App bei jeder Anmeldung, welche Freigaben das Konto lesen
@@ -109,7 +115,7 @@ Unterstützt wird jeweils die neueste Version unter [Releases](https://github.co
 
 Please report vulnerabilities privately via GitHub's *Report a vulnerability* button, not as a public issue.
 The shelf only stores references (share + relative path + SHA-256) and never modifies files in 0.1. Only shared folders
-enabled by the admin and readable by the package user are used; `homes` is excluded. Paths are normalised, `..`,
+enabled by the admin and readable by the package user are used; in `homes` users only see their own folder (like DSM). Paths are normalised, `..`,
 DSM system folders and symlinks leaving the share are rejected. Users only see documents from shared folders they can
 read in DSM (share level, not sub-folder ACLs), taken over on every DSM login/SSO. Only PDF, images and plain text are
 shown inline; everything else is sent as a download with `nosniff`.

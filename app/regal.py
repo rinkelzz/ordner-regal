@@ -80,11 +80,11 @@ def visible_doc_filter(access: Dict[str, bool]) -> tuple:
     return f"lower(f.share) IN ({','.join('?' * len(names))})", names
 
 
-def binder_counts(conn: sqlite3.Connection, binder_ids: List[int], access: Dict[str, bool]) -> Dict[int, dict]:
+def binder_counts(conn: sqlite3.Connection, binder_ids: List[int], user) -> Dict[int, dict]:
     """Pro Ordner: sichtbare Dokumente, ausgeblendete (keine DSM-Rechte), fehlende Dateien."""
     if not binder_ids:
         return {}
-    cond, args = visible_doc_filter(access)
+    cond, args = shares.doc_filter(conn, user)
     q = ",".join("?" * len(binder_ids))
     rows = conn.execute(f"""
         SELECT t.binder_id AS bid,
@@ -102,11 +102,10 @@ def binder_counts(conn: sqlite3.Connection, binder_ids: List[int], access: Dict[
 def shelf_detail(conn: sqlite3.Connection, user, shelf_id: int) -> dict:
     right = need_shelf(conn, user, shelf_id)
     s = conn.execute("SELECT * FROM shelves WHERE id = ?", (shelf_id,)).fetchone()
-    access = shares.user_access(conn, user)
     boards = [dict(b) for b in conn.execute("SELECT id, name, sort FROM boards WHERE shelf_id = ? ORDER BY sort, id", (shelf_id,))]
     binders = conn.execute("SELECT x.* FROM binders x JOIN boards b ON b.id = x.board_id WHERE b.shelf_id = ? ORDER BY x.sort, x.id",
                            (shelf_id,)).fetchall()
-    counts = binder_counts(conn, [x["id"] for x in binders], access)
+    counts = binder_counts(conn, [x["id"] for x in binders], user)
     for b in boards:
         b["binders"] = [{"id": x["id"], "title": x["title"], "color": x["color"], "width": x["width"], "notes": x["notes"],
                          **counts.get(x["id"], {})} for x in binders if x["board_id"] == b["id"]]
@@ -142,8 +141,7 @@ def binder_detail(conn: sqlite3.Connection, user, binder_id: int) -> dict:
     x = conn.execute("SELECT x.*, b.name AS board_name FROM binders x JOIN boards b ON b.id = x.board_id WHERE x.id = ?",
                      (binder_id,)).fetchone()
     shelf = conn.execute("SELECT id, name FROM shelves WHERE id = ?", (shelf_id,)).fetchone()
-    access = shares.user_access(conn, user)
-    cond, args = visible_doc_filter(access)
+    cond, args = shares.doc_filter(conn, user)
     tabs = []
     for t in conn.execute("SELECT * FROM tabs WHERE binder_id = ? ORDER BY sort, id", (binder_id,)):
         rows = conn.execute(DOC_SELECT + " JOIN filings fi ON fi.document_id = d.id WHERE fi.tab_id = ? AND " + cond +
@@ -233,8 +231,7 @@ def load_doc(conn: sqlite3.Connection, user, doc_id: int, edit: bool = False) ->
     if not row:
         raise HTTPException(404, "Dokument nicht gefunden")
     places = doc_places(conn, user, doc_id)
-    access = shares.user_access(conn, user)
-    if not places or row["share"].lower() not in {n.lower() for n in access}:
+    if not places or not shares.allowed(conn, user, row["share"], row["relpath"]):
         raise HTTPException(404, "Dokument nicht gefunden")
     if edit and not any(p["right"] == "edit" for p in places):
         raise HTTPException(403, "Du darfst dieses Dokument nur ansehen")

@@ -86,9 +86,9 @@ def file_from_inbox(data: InboxFileIn, user=Depends(current_user), conn: sqlite3
             target = inbox.target_for_tab(conn, data.tab_id)
         if not target:
             raise HTTPException(409, "no_target")
-        if not inbox.can_write(conn, user, share):
+        if not inbox.can_write(conn, user, share, rel):
             raise HTTPException(403, f"Du darfst in DSM in „{share}“ nicht schreiben – die Datei kann dort nicht weg. „Nur verknüpfen“ geht.")
-        if not inbox.can_write(conn, user, target["share"]):
+        if not inbox.can_write(conn, user, target["share"], target["path"]):
             raise HTTPException(403, f"Du darfst in DSM in „{target['share']}“ nicht schreiben")
         try:
             folder = shares.resolve(conn, target["share"], target["path"])
@@ -146,7 +146,7 @@ class MkdirIn(BaseModel):
 
 @router.post("/browse/mkdir")
 def mkdir(data: MkdirIn, user=Depends(current_user), conn: sqlite3.Connection = Depends(get_db)):
-    if not inbox.can_write(conn, user, data.share):
+    if not inbox.can_write(conn, user, data.share, f"{data.path}/{data.name}"):
         raise HTTPException(403, f"Du darfst in DSM in „{data.share}“ nicht schreiben")
     name = inbox.BAD_NAME.sub("_", data.name.strip()).strip(" .")
     if not name or shares.hidden(name):

@@ -907,3 +907,11 @@ html.dark .sres mark, [data-theme="dark"] .sres mark { background: #744210; }
 .sresPage { position: static !important; width: auto !important; max-height: none !important; padding: 6px; }
 .sresPage .hit { padding: 10px 12px; }
 .sresPage .snip { font-size: 13px; }
+
+/* Ziehen (Pointer Events) */
+.spine, .inlist .it, table.docs tr[data-doc] { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.dragghost { position: fixed; z-index: 90; pointer-events: none; transform: translate(-50%, -60%) rotate(-3deg); opacity: .85;
+             box-shadow: 0 12px 28px rgba(0,0,0,.35); margin: 0; }
+.dragchip { background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 13px; white-space: nowrap; }
+.spine.dragging { opacity: .35; }
+table.docs tr.dragging td, .inlist .it.dragging { opacity: .45; }

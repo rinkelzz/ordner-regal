@@ -59,7 +59,7 @@ def sso(user, shares=None):
 def setup_shelf(c):
     shares = c.get("/api/v1/admin/shares").json()["shares"]
     names = [s["name"] for s in shares]
-    assert names == ["Dokumente", "Privat", "Scans"]  # keine @-/#-Ordner, kein „homes“
+    assert names == ["Dokumente", "homes", "Privat", "Scans"]  # keine @-/#-Ordner
     for n in ("Dokumente", "Privat"):
         assert c.patch(f"/api/v1/admin/shares/{n}", json={"enabled": True}).status_code == 200
     shelf = c.post("/api/v1/shelves", json={"name": "Privat"}).json()
@@ -281,7 +281,7 @@ def test_dsm_password_login_takes_shares(nas, monkeypatch):
         admin.post("/api/v1/users", json={"username": "ben", "display_name": "Ben"})
     with TestClient(app, client=("192.168.1.12", 1)) as c:
         login(c, "ben", "dsm-pw")
-        assert c.get("/api/v1/shares").json() == [{"name": "Privat", "can_write": True}]
+        assert c.get("/api/v1/shares").json() == [{"name": "Privat", "can_write": True, "home": None}]
 
 
 def test_dsm_proxy_fetches_shares(monkeypatch):
@@ -321,10 +321,11 @@ def test_dsm_proxy_fetches_shares(monkeypatch):
 
 
 def test_stale_shares_removed(nas):
-    """Freigaben, die es nicht mehr gibt oder die ausgeschlossen sind (z. B. „homes“ aus 0.1.0), verschwinden aus der Liste."""
+    """Freigaben, die es nicht mehr gibt oder die ausgeschlossen sind (z. B. „docker“), verschwinden aus der Liste."""
     conn = connect()
-    conn.execute("INSERT INTO shares(name, path, enabled, created_at) VALUES ('homes', '/volume1/homes', 0, 'x')")
+    conn.execute("INSERT INTO shares(name, path, enabled, created_at) VALUES ('Alt', '/volume1/Alt', 0, 'x')")
+    conn.execute("INSERT INTO shares(name, path, enabled, created_at) VALUES ('docker', '/volume1/docker', 0, 'x')")
     conn.close()
     with TestClient(app, client=("192.168.1.10", 1)) as c:
         login(c)
-        assert [s["name"] for s in c.get("/api/v1/admin/shares").json()["shares"]] == ["Dokumente", "Privat", "Scans"]
+        assert [s["name"] for s in c.get("/api/v1/admin/shares").json()["shares"]] == ["Dokumente", "homes", "Privat", "Scans"]

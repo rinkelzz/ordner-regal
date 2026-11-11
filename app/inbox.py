@@ -26,10 +26,9 @@ MAX_ITEMS = 500
 
 def sources(conn: sqlite3.Connection, user=None) -> List[dict]:
     """Eingänge – mit user nur die aktiven, deren Freigabe der Benutzer lesen darf."""
-    access = {n.lower(): w for n, w in shares.user_access(conn, user).items()} if user is not None else None
     out = []
     for r in conn.execute("SELECT * FROM inbox_sources ORDER BY name COLLATE NOCASE"):
-        if access is not None and (not r["active"] or r["share"].lower() not in access):
+        if user is not None and (not r["active"] or not shares.allowed(conn, user, r["share"], r["relpath"])):
             continue
         out.append({"id": r["id"], "share": r["share"], "path": r["relpath"], "name": r["name"], "active": bool(r["active"])})
     return out
@@ -37,7 +36,6 @@ def sources(conn: sqlite3.Connection, user=None) -> List[dict]:
 
 def items(conn: sqlite3.Connection, user, source_id: Optional[int] = None) -> List[dict]:
     known = {(r["share"].lower(), r["relpath"]) for r in conn.execute("SELECT share, relpath FROM files")}
-    writable = {n.lower() for n, w in shares.user_access(conn, user).items() if w}
     out: List[dict] = []
     for src in sources(conn, user):
         if source_id and src["id"] != source_id:
@@ -50,7 +48,7 @@ def items(conn: sqlite3.Connection, user, source_id: Optional[int] = None) -> Li
             if (src["share"].lower(), f["path"]) in known:
                 continue
             out.append({**f, "share": src["share"], "source_id": src["id"], "source": src["name"],
-                        "can_move": src["share"].lower() in writable})
+                        "can_move": bool(shares.allowed(conn, user, src["share"], f["path"], write=True))})
     out.sort(key=lambda x: -x["mtime"])
     return out[:MAX_ITEMS]
 
@@ -173,9 +171,8 @@ def move_file(src: Path, folder: Path, name: str) -> Path:
     raise HTTPException(409, "Zieldatei konnte nicht angelegt werden – bitte erneut versuchen")
 
 
-def can_write(conn: sqlite3.Connection, user, share: str) -> bool:
-    access = shares.user_access(conn, user)
-    return any(n.lower() == share.lower() and w for n, w in access.items())
+def can_write(conn: sqlite3.Connection, user, share: str, path: str = "") -> bool:
+    return bool(shares.allowed(conn, user, share, path, write=True))
 
 
 def suggest(conn: sqlite3.Connection, share: str, relpath: str) -> Dict[str, str]:

@@ -53,7 +53,9 @@ function pickFolder({ title = "Zielordner wählen", start = null, allowNone = fa
       $$("[data-dir]", q("[data-list]")).forEach(el => el.onclick = () => { st.path = el.dataset.dir; load(); });
       q("[data-ok]").textContent = `„/${st.share}${st.path ? "/" + st.path : ""}“ wählen`;
     };
-    q("[data-share]").onchange = () => { st.share = q("[data-share]").value; st.path = ""; load(); };
+    const homeOf = (name) => (my.find(x => x.name === name) || {}).home || "";
+    if (!st.path && homeOf(st.share)) st.path = homeOf(st.share);
+    q("[data-share]").onchange = () => { st.share = q("[data-share]").value; st.path = homeOf(st.share); load(); };
     q("[data-ok]").onclick = () => done({ share: st.share, path: st.path, remember: !!(q("[data-remember]") && q("[data-remember]").checked) });
     if (q("[data-none]")) q("[data-none]").onclick = () => done("");
     if (q("[data-alt]")) q("[data-alt]").onclick = () => done("alt");
@@ -98,7 +100,7 @@ function renderInbox() {
       <select data-src><option value="">Alle Eingänge (${E.sources.length})</option>${E.sources.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join("")}</select>
       <button data-reload>↻ Aktualisieren</button></div></div>
     ${E.items.length ? `<div class="inwrap">
-      <section class="card inlist">${E.items.map((x, i) => `<div class="it ${i === E.sel ? "sel" : ""}" data-i="${i}" draggable="true" title="Auf einen Ordnerrücken ziehen">
+      <section class="card inlist">${E.items.map((x, i) => `<div class="it ${i === E.sel ? "sel" : ""}" data-i="${i}" title="Auf einen Ordnerrücken ziehen">
           ${icoFor(x.mime, x.name)}<div><b>${esc(x.name)}</b><small>${esc(x.source)} · ${new Date(x.mtime * 1000).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" })} · ${fmtBytes(x.size)}</small></div></div>`).join("")}
         <p class="muted small" style="margin:10px 4px 0">Ziehe eine Datei auf einen Ordnerrücken – oder wähle rechts das Ziel.</p></section>
       <section class="card inprev"><div class="pview" data-pv></div></section>
@@ -109,8 +111,16 @@ function renderInbox() {
   m.querySelector("[data-reload]").onclick = () => inboxShow();
   if (!it) return;
   $$("[data-i]", m).forEach(el => {
-    el.onclick = () => { E.sel = Number(el.dataset.i); E.nameTouched = false; renderInbox(); };
-    el.addEventListener("dragstart", (e) => { e.dataTransfer.setData("text/plain", "inbox:" + el.dataset.i); e.dataTransfer.effectAllowed = "move"; });
+    el.onclick = () => { if (justDragged()) return; E.sel = Number(el.dataset.i); E.nameTouched = false; renderInbox(); };
+    pointerDrag(el, {
+      ghost: () => { const g = document.createElement("div"); g.className = "dragchip"; g.textContent = "📄 " + E.items[Number(el.dataset.i)].name; return g; },
+      move: (x, y, t) => { const ms = t && t.closest(".ms[data-mb]"); $$(".ms", m).forEach(s2 => s2.classList.toggle("drop", s2 === ms)); },
+      drop: (x, y, t) => {
+        $$(".ms", m).forEach(s2 => s2.classList.remove("drop"));
+        const ms = t && t.closest(".ms[data-mb]"); if (!ms || !E.dropOn) return;
+        E.dropOn(Number(el.dataset.i), Number(ms.dataset.mb));
+      },
+    });
   });
   renderPreview(m.querySelector("[data-pv]"), `api/v1/browse/file?share=${encodeURIComponent(it.share)}&path=${encodeURIComponent(it.path)}`, it.mime);
   renderSortForm(it);
@@ -172,17 +182,13 @@ async function renderSortForm(it) {
   const markSpine = () => $$("[data-mb]", box).forEach(s => s.classList.toggle("on", Number(s.dataset.mb) === E.binderId));
   $$("[data-mb]", box).forEach(s => {
     s.onclick = () => { E.binderId = Number(s.dataset.mb); q("binder").value = s.dataset.mb; markSpine(); loadTabs(); };
-    s.addEventListener("dragover", (e) => { e.preventDefault(); s.classList.add("drop"); });
-    s.addEventListener("dragleave", () => s.classList.remove("drop"));
-    s.addEventListener("drop", async (e) => {
-      e.preventDefault(); s.classList.remove("drop");
-      const v = e.dataTransfer.getData("text/plain"); if (!v.startsWith("inbox:")) return;
-      const i = Number(v.slice(6));
-      if (i !== E.sel) { E.sel = i; E.nameTouched = false; E.binderId = Number(s.dataset.mb); renderInbox(); return; }  // erst ansehen, dann einsortieren
-      E.binderId = Number(s.dataset.mb); q("binder").value = s.dataset.mb; markSpine(); await loadTabs();
-      submit(it.can_move ? "move" : "link");
-    });
   });
+  // Datei aus der Liste auf einen Ordnerrücken gezogen
+  E.dropOn = async (i, binderId) => {
+    if (i !== E.sel) { E.sel = i; E.nameTouched = false; E.binderId = binderId; renderInbox(); return; }  // erst ansehen, dann einsortieren
+    E.binderId = binderId; q("binder").value = String(binderId); markSpine(); await loadTabs();
+    submit(it.can_move ? "move" : "link");
+  };
   const submit = async (mode, target) => {
     const err = box.querySelector("[data-err]"); err.textContent = "";
     if (!q("tab").value) { err.textContent = "Bitte Ordner und Register wählen."; return; }
