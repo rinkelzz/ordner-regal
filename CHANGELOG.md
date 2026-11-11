@@ -2,6 +2,15 @@
 
 Alle nennenswerten Änderungen an diesem Projekt. Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.2.1] – 2026-11-11
+
+### Behoben
+- **Port-Konflikt nach Update:** Wer 0.1.0 noch mit dem alten Standard-Port 8790 installiert hatte (den nutzt
+  Foto-Globus), behielt ihn beim Update. Das Update stellt 8790 jetzt automatisch auf einen freien Port ab 8800 um.
+- **Belegter Port beim Start:** Statt nicht zu starten, weicht das Paket auf den nächsten freien Port ab 8800 aus
+  (ohne die Ports von Zeiterfassung, Zeitmanagement, IT-Dokumentation und Foto-Globus) und speichert ihn. Das
+  DSM-Fenster funktioniert weiter; Admins sehen einen Hinweis, die Paketquelle im Paket-Zentrum anzupassen.
+
 ## [0.2.0] – 2026-11-11
 
 ### Neu: Scanner-Eingang
@@ -48,6 +57,7 @@ Erste Version.
   Zwei-Faktor-Code, vier Designs, Name und Logo, nächtliche Datensicherung, Updates übers Paket-Zentrum,
   Änderungsprotokoll mit CSV-Export, Port änderbar, Testmail über eigenen SMTP-Server.
 
+[0.2.1]: https://github.com/rinkelzz/ordner-regal/releases/tag/v0.2.1
 [0.2.0]: https://github.com/rinkelzz/ordner-regal/releases/tag/v0.2.0
 [0.1.1]: https://github.com/rinkelzz/ordner-regal/releases/tag/v0.1.1
 [0.1.0]: https://github.com/rinkelzz/ordner-regal/releases/tag/v0.1.0

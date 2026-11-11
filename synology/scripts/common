@@ -69,14 +69,27 @@ finally:
     s.close()' "$2" >/dev/null 2>&1
 }
 
-# Nächster freier Port ab $2 + 10 (für den Hinweis)
+# Standard-Ports der anderen Synology-Apps von rinkelzz – nie automatisch belegen
+OTHER_APP_PORTS="8765 8770 8780 8790"
+
+# Nächster freier Port ab $2 (für Hinweise und das automatische Ausweichen); überspringt die Ports der anderen Apps
 next_free_port() {
-    p=$(( $2 + 10 )); i=0
-    while [ $i -lt 50 ]; do
-        port_is_free "$1" "$p" && { echo "$p"; return; }
+    p=$2; i=0
+    while [ $i -lt 200 ]; do
+        case " $OTHER_APP_PORTS " in *" $p "*) p=$((p + 1)); i=$((i + 1)); continue ;; esac
+        port_is_free "$1" "$p" && { echo "$p"; return 0; }
         p=$((p + 1)); i=$((i + 1))
     done
-    echo "8850"
+    return 1
+}
+
+# ORG_PORT in config.env setzen (andere Zeilen bleiben)
+set_config_port() {
+    if grep -q '^ORG_PORT=' "${CONFIG}" 2>/dev/null; then
+        sed -i "s/^ORG_PORT=.*/ORG_PORT=$1/" "${CONFIG}"
+    else
+        echo "ORG_PORT=$1" >> "${CONFIG}"
+    fi
 }
 
 # Welches Programm lauscht auf Port $1? (leer, wenn nicht ermittelbar)

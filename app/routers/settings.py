@@ -48,8 +48,18 @@ def _secret_mode() -> str:
     return dsm_auth.secret_mode
 
 
+def _port_changed():
+    """Hat das Start-Skript wegen eines belegten Ports umgestellt? (Datei port_changed: „alt neu“)"""
+    try:
+        old, new = (app_settings.data_dir / "port_changed").read_text().split()[:2]
+        return {"old": int(old), "new": int(new)}
+    except (OSError, ValueError):
+        return None
+
+
 def settings_out(conn) -> dict:
     return {
+        "port_changed": _port_changed(),
         "company_name": get_setting(conn, "company_name"),
         "theme_default": get_setting(conn, "theme_default") or "classic",
         "themes": THEMES,
@@ -170,6 +180,15 @@ def set_proxy(data: ProxyIn, admin=Depends(admin_user), conn: sqlite3.Connection
     proxy.configure(value)
     audit(conn, admin["id"], "settings_updated", "settings", f"Vertrauenswürdiger Reverse Proxy: {old or '–'} → {value or '–'}")
     return {"trusted_proxies": value}
+
+
+@router.post("/settings/port-notice/dismiss")
+def dismiss_port_notice(admin=Depends(admin_user)):
+    try:
+        (app_settings.data_dir / "port_changed").unlink()
+    except OSError:
+        pass
+    return {"ok": True}
 
 
 @router.post("/settings/port")

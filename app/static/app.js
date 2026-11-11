@@ -111,11 +111,24 @@ async function start() {
   $("loginView").classList.add("hidden"); $("appView").classList.remove("hidden");
   showMe();
   $("httpWarn").classList.toggle("hidden", !state.me.insecure_http);
+  showPortNotice();
   applyMode();
   if (window.inboxCount) inboxCount();
   const [wanted, sec] = ((location.hash || "").slice(1) || store.get("tab") || firstTab()).split("/");
   if (sec && wanted === "admin") store.set("asec", sec);
   await showTab(TABS.includes(wanted) && (wanted !== "admin" || isAdmin()) ? wanted : firstTab(), wanted === "admin" ? "" : sec);
+}
+
+function showPortNotice() {
+  const pc = isAdmin() && state.settings && state.settings.port_changed;
+  $("portWarn").classList.toggle("hidden", !pc);
+  if (!pc) return;
+  $("portWarn").innerHTML = `<b>Port geändert:</b> Port ${pc.old} war auf der NAS schon belegt (z. B. von Foto-Globus) – das Ordner-Regal läuft jetzt auf
+    <b>${pc.new}</b>. Das DSM-Fenster funktioniert weiter. Bitte im Paket-Zentrum die Paketquelle auf
+    <code>http://127.0.0.1:${pc.new}/spk</code> ändern und ggf. das Ziel im Reverse Proxy anpassen.
+    <button class="mini" id="portWarnOk">Erledigt</button>`;
+  $("portWarnOk").onclick = async () => { try { await api("settings/port-notice/dismiss", { method: "POST" }); } catch (e) { /* egal */ }
+    state.settings.port_changed = null; showPortNotice(); };
 }
 
 function showMe() {

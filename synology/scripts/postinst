@@ -8,6 +8,17 @@ case "$PORT" in ''|*[!0-9]*) PORT=8800 ;; esac
 # Ports, die DSM selbst braucht, nicht zulassen
 case "$PORT" in 80|443|5000|5001|5005|5006|6690|9900|9901) PORT=8800 ;; esac
 
+# Update von 0.1.0: Der alte Standard-Port 8790 gehört Foto-Globus → auf einen freien Port ab 8800 umstellen
+if [ -f "${CONFIG}" ] && grep -q '^ORG_PORT="\{0,1\}8790"\{0,1\}$' "${CONFIG}"; then
+    set -- $(find_python)
+    NEW=$(next_free_port "$1" 8800)
+    if [ -n "$NEW" ]; then
+        set_config_port "$NEW"
+        echo "8790 ${NEW}" > "${PKGVAR}/port_changed" 2>/dev/null
+        log "Alter Standard-Port 8790 (Foto-Globus) → Port ${NEW}"
+    fi
+fi
+
 if [ ! -f "${CONFIG}" ]; then
     {
         echo "# Ordner-Regal – Einstellungen. Nach Änderungen das Paket neu starten."

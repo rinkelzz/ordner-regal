@@ -29,10 +29,20 @@ start_daemon() {
     export PYTHONDONTWRITEBYTECODE=1
     # Für ui/app.cgi (DSM-Fenster): welches Python die Weiterleitung nutzen soll
     echo "${PY}" > "${PKGDEST}/.python" 2>/dev/null && chmod 644 "${PKGDEST}/.python" 2>/dev/null
+    # Port belegt (z. B. alte Installation mit 8790, den Foto-Globus nutzt)? Dann auf einen freien Port ausweichen,
+    # statt nicht zu starten. Das DSM-Fenster liest den Port aus config.env und funktioniert weiter.
     if ! port_is_free "$PY" "${ORG_PORT}"; then
         WHO=$(port_owner "${ORG_PORT}")
-        log "FEHLER: Port ${ORG_PORT} ist schon belegt${WHO:+ (von: ${WHO})}. Anderen Port in ${CONFIG} eintragen (ORG_PORT=...) und das Paket neu starten."
-        return 1
+        NEW=$(next_free_port "$PY" 8800)
+        if [ -z "$NEW" ]; then
+            log "FEHLER: Port ${ORG_PORT} ist belegt${WHO:+ (von: ${WHO})} und kein freier Port ab 8800 gefunden."
+            return 1
+        fi
+        log "Port ${ORG_PORT} ist belegt${WHO:+ (von: ${WHO})} – weiche auf Port ${NEW} aus (gespeichert in ${CONFIG})."
+        set_config_port "$NEW"
+        echo "${ORG_PORT} ${NEW}" > "${PKGVAR}/port_changed" 2>/dev/null
+        ORG_PORT="$NEW"
+        export ORG_PORT
     fi
     log "Starte mit ${PY} (${TAG}, $(cpu_name "$PY")) auf Port ${ORG_PORT}"
     cd "${PKGDEST}" || return 1

@@ -79,3 +79,17 @@ def test_port_in_settings_and_proxy_reads_config(admin, tmp_path):
     proxy.VAR = str(tmp_path)
     (tmp_path / "config.env").write_text("ORG_PORT=9555\n", encoding="utf-8")
     assert proxy.port() == 9555
+
+
+def test_port_changed_notice(tmp_path):
+    """Hat das Start-Skript wegen eines belegten Ports umgestellt, sieht der Admin einen Hinweis (bis „Erledigt“)."""
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from .fresh import fresh_db
+    with fresh_db(tmp_path):
+        (tmp_path / "port_changed").write_text("8790 8800\n")
+        with TestClient(app) as c:
+            c.post("/api/v1/auth/login", json={"username": "admin", "password": os.environ["ORG_ADMIN_PASSWORD"]})
+            assert c.get("/api/v1/settings").json()["port_changed"] == {"old": 8790, "new": 8800}
+            assert c.post("/api/v1/settings/port-notice/dismiss").json() == {"ok": True}
+            assert c.get("/api/v1/settings").json()["port_changed"] is None
