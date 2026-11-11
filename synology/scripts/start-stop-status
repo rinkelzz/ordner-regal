@@ -29,6 +29,11 @@ start_daemon() {
     export PYTHONDONTWRITEBYTECODE=1
     # Für ui/app.cgi (DSM-Fenster): welches Python die Weiterleitung nutzen soll
     echo "${PY}" > "${PKGDEST}/.python" 2>/dev/null && chmod 644 "${PKGDEST}/.python" 2>/dev/null
+    if ! port_is_free "$PY" "${ORG_PORT}"; then
+        WHO=$(port_owner "${ORG_PORT}")
+        log "FEHLER: Port ${ORG_PORT} ist schon belegt${WHO:+ (von: ${WHO})}. Anderen Port in ${CONFIG} eintragen (ORG_PORT=...) und das Paket neu starten."
+        return 1
+    fi
     log "Starte mit ${PY} (${TAG}, $(cpu_name "$PY")) auf Port ${ORG_PORT}"
     cd "${PKGDEST}" || return 1
     nohup "${PY}" -m app.main >> "${LOGFILE}" 2>&1 &

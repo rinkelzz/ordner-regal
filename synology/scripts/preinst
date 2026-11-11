@@ -14,4 +14,18 @@ case "$(cpu_name "$(find_python | cut -d' ' -f1)")" in
             >> "${SYNOPKG_TEMP_LOGFILE:-/dev/stdout}"
         exit 1 ;;
 esac
+# Nur bei Neuinstallation: Ist der gewählte Port frei? (Beim Update läuft die alte Version noch darauf.)
+if [ "${SYNOPKG_PKG_STATUS:-INSTALL}" != "UPGRADE" ]; then
+    PORT="${wizard_port:-8800}"
+    case "$PORT" in ''|*[!0-9]*) PORT=8800 ;; esac
+    PY=$(find_python | cut -d' ' -f1)
+    if ! port_is_free "$PY" "$PORT"; then
+        WHO=$(port_owner "$PORT")
+        {
+            echo "Port ${PORT} ist auf dieser NAS schon belegt${WHO:+ (von: ${WHO})}. Bitte die Installation erneut starten und im Assistenten einen anderen Port eintragen – zum Beispiel $(next_free_port "$PY" "$PORT")."
+            echo "Oft schon belegt: 8765 (Zeiterfassung), 8770 (Zeitmanagement), 8780 (IT-Dokumentation), 8790 (Foto-Globus)."
+        } >> "${SYNOPKG_TEMP_LOGFILE:-/dev/stdout}"
+        exit 1
+    fi
+fi
 exit 0

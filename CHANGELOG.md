@@ -2,6 +2,14 @@
 
 Alle nennenswerten Änderungen an diesem Projekt. Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.1.1] – 2026-11-11
+
+### Verbessert
+- **Belegter Port wird erkannt:** Die Installation prüft, ob der im Assistenten gewählte Port auf der NAS schon
+  belegt ist, bricht dann mit einem klaren Hinweis ab und schlägt einen freien Port vor. Startet das Paket später auf
+  einem belegten Port, steht der Grund im Protokoll des Pakets.
+- Standard-Port ist **8800** (8790 nutzt schon Foto-Globus).
+
 ## [0.1.0] – 2026-11-11
 
 Erste Version.
@@ -24,4 +32,5 @@ Erste Version.
   Zwei-Faktor-Code, vier Designs, Name und Logo, nächtliche Datensicherung, Updates übers Paket-Zentrum,
   Änderungsprotokoll mit CSV-Export, Port änderbar, Testmail über eigenen SMTP-Server.
 
+[0.1.1]: https://github.com/rinkelzz/ordner-regal/releases/tag/v0.1.1
 [0.1.0]: https://github.com/rinkelzz/ordner-regal/releases/tag/v0.1.0
