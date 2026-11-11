@@ -1,0 +1,46 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # beide Enden: 3.8 = ältestes DSM-Python, 3.13 = neuestes
+          - { python: "3.8", os: ubuntu-22.04 }
+          - { python: "3.13", os: ubuntu-latest }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - run: pip install -r requirements-dev.txt
+      - run: pytest -q
+
+  spk:
+    name: SPK bauen
+    needs: test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: ./synology/build_spk.sh
+      - uses: actions/upload-artifact@v6
+        with:
+          name: ordnerregal-spk
+          path: dist/*.spk
+          retention-days: 14

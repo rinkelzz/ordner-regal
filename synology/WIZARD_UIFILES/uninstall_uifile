@@ -1,0 +1,10 @@
+[
+    {
+        "step_title": "Ordner-Regal deinstallieren",
+        "items": [
+            {
+                "desc": "<b>Achtung:</b> Beim Deinstallieren werden alle Daten des Ordner-Regals gelöscht (Regale, Ordner, Verweise – die Dokumente in den Freigaben bleiben unberührt). Sicherungen im freigegebenen Ordner (Verwaltung → System → Datensicherung) bleiben erhalten. Für ein Update einfach die neue Version installieren – dabei bleiben die Daten erhalten."
+            }
+        ]
+    }
+]

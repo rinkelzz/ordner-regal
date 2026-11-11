@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#2b6cb0">
+<title>Ordner-Regal</title>
+<link rel="icon" href="static/icon.png">
+<link rel="apple-touch-icon" href="static/icon.png">
+<link rel="stylesheet" href="static/app.css?v={{v}}">
+<script src="static/theme.js?v={{v}}"></script>
+</head>
+<body>
+
+<section id="loginView" class="card login hidden">
+  <h1 class="brand"><img class="brandIcon" src="static/icon.png" alt=""><img class="brandLogo hidden" alt="">
+    <span><span>Ordner-Regal</span><small class="brandCompany"></small></span></h1>
+  <label>Benutzername <input id="lu" autocomplete="username" autocapitalize="off"></label>
+  <label>Passwort <input id="lp" type="password" autocomplete="current-password"></label>
+  <label id="otpWrap" class="hidden">Zwei-Faktor-Code (DSM) <input id="lo" inputmode="numeric" autocomplete="one-time-code" maxlength="12"></label>
+  <p class="muted small" style="margin:0">Du kannst dich auch mit deinem DSM-Benutzer anmelden.</p>
+  <button class="primary" id="loginBtn">Anmelden</button>
+  <div class="err" id="loginErr"></div>
+</section>
+
+<div id="appView" class="hidden">
+<header>
+  <h1 class="brand"><img class="brandIcon" src="static/icon.png" alt=""><img class="brandLogo hidden" alt="">
+    <span><span>Ordner-Regal</span><small class="brandCompany"></small></span></h1>
+  <div class="hsearch"><input id="gq" type="search" autocomplete="off" placeholder="Dokumente suchen … Titel, Dateiname, Schlagwort" aria-label="Suchen"><kbd>/</kbd>
+    <div class="sres hidden" id="gres"></div></div>
+  <nav id="tabs">
+    <button data-tab="regal">🗄️ Regal</button>
+    <button data-tab="admin" class="admin hidden">Verwaltung</button>
+  </nav>
+  <button class="userchip" id="userChip" data-tab="me" title="Mein Zugang"><span class="av" id="userAv"></span><span class="lbl" id="userName"></span></button>
+</header>
+
+<main>
+  <div id="httpWarn" class="httpwarn hidden"><b>Unverschlüsselte Verbindung aus dem Internet.</b> Das Ordner-Regal ist gerade per <code>http://</code> von außen erreichbar – Passwort und Anmeldung können mitgelesen werden. Bitte den Port nicht direkt freigeben, sondern über den Reverse Proxy von DSM mit <code>https://</code>.</div>
+
+  <!-- REGAL -->
+  <div data-page="regal" class="page hidden">
+    <div class="rwrap">
+      <aside class="rside">
+        <section class="card"><h3 class="rh">Regale</h3><div id="shelfList"></div>
+          <button class="linkbtn admin hidden" id="shelfNew">＋ Neues Regal</button></section>
+        <section class="card"><h3 class="rh">Schlagworte</h3><div id="tagCloud" class="tagcloud"></div></section>
+      </aside>
+      <section class="rmain" id="regalMain"></section>
+    </div>
+    <div class="err" id="regalErr"></div>
+  </div>
+
+  <!-- VERWALTUNG -->
+  <div data-page="admin" class="page hidden">
+    <nav class="subnav" id="adminNav" aria-label="Verwaltung">
+      <button data-asec="benutzer">👥 Benutzer</button>
+      <button data-asec="freigaben">📁 Freigaben</button>
+      <button data-asec="einstellungen">⚙️ Einstellungen</button>
+      <button data-asec="mail">✉️ Mail</button>
+      <button data-asec="system" title="Port, Datensicherung, Updates">💾 System</button>
+      <button data-asec="protokoll">📜 Protokoll</button>
+    </nav>
+
+    <section class="card asec" data-asec="benutzer">
+      <div class="toolbar"><h2>Benutzer</h2>
+        <label class="inline small"><input type="checkbox" id="uShowInactive"> deaktivierte anzeigen</label></div>
+      <div class="scroll"><table id="usersTable"></table></div>
+      <details class="more" id="newUserBox">
+        <summary>＋ Benutzer anlegen</summary>
+        <div class="uform">
+          <div class="ugrid">
+            <label>Benutzername <input id="nuName" autocomplete="off" autocapitalize="off" placeholder="wie in DSM, z. B. anna"></label>
+            <label>Anzeigename <input id="nuDisplay" placeholder="Anna Beispiel"></label>
+            <label>E-Mail (optional) <input id="nuEmail" type="email"></label>
+            <label>Passwort (optional) <input id="nuPw" type="password" autocomplete="new-password" placeholder="leer = nur DSM-Anmeldung"></label>
+          </div>
+          <div class="row" style="margin-top:10px">
+            <label class="inline"><input type="checkbox" id="nuAdmin"> Vollzugriff (Admin)</label>
+            <button class="primary" id="nuSave">Anlegen</button>
+          </div>
+        </div>
+      </details>
+      <p class="muted small"><b>Vollzugriff</b>: sieht und bearbeitet alle Regale und die Verwaltung. Alle anderen bekommen Rechte <b>pro Regal</b>
+        (ansehen oder bearbeiten – im Regal unter „Rechte“). Welche Dokumente jemand öffnen darf, kommt bei DSM-Benutzern aus <b>DSM</b>
+        (Freigegebener Ordner → Berechtigungen); bei eigenen Konten hakst du die Freigaben hier unter „Bearbeiten“ an.
+        Ein DSM-Konto kommt nur hinein, wenn hier ein Benutzer mit gleichem Namen angelegt ist (oder das automatische Anlegen eingeschaltet ist).</p>
+      <div class="err" id="uErr"></div>
+    </section>
+
+    <section class="card asec" data-asec="freigaben">
+      <div class="toolbar"><h2>Freigegebene Ordner</h2><button id="shCheck" title="Fehlende Dateien suchen und verschobene wiederfinden">🔎 Dateien jetzt prüfen</button></div>
+      <p class="muted small" style="margin-top:0">Hier wählst du, aus welchen freigegebenen Ordnern Dokumente ins Regal dürfen. Die Dateien bleiben, wo sie sind –
+        das Regal merkt sich nur, wo sie liegen. Wer welche Dokumente sieht, richtet sich nach den <b>Rechten in DSM</b>: Ein DSM-Benutzer sieht
+        nur Dokumente aus Freigaben, die er auch in der File Station öffnen darf.</p>
+      <div class="scroll"><table id="shTable"></table></div>
+      <p class="small" id="shInfo"></p>
+      <details class="small" style="margin:8px 0" id="shHelp">
+        <summary>Freigabe für das Regal lesbar machen</summary>
+        <ol style="padding-left:20px;margin:6px 0">
+          <li>DSM → <b>Systemsteuerung</b> → <b>Freigegebener Ordner</b> → Ordner auswählen → <b>Bearbeiten</b>.</li>
+          <li>Reiter <b>Berechtigungen</b> → oben links im Auswahlfeld <b>System-interner Benutzer</b> wählen.</li>
+          <li>Bei <b>ordnerregal</b> den Haken <b>Lesen/Schreiben</b> setzen (Lesen reicht für Version 0.1) → <b>Speichern</b>.</li>
+          <li>Hier die Seite neu laden und die Freigabe einschalten.</li>
+        </ol>
+      </details>
+      <div class="err" id="shErr"></div>
+    </section>
+
+    <section class="card asec" data-asec="einstellungen">
+      <h2>Einstellungen</h2>
+      <div class="setgrid">
+        <fieldset><legend>Name &amp; Darstellung</legend>
+          <label>Name (Kopfzeile, Anmeldung) – z. B. Familie oder Firma <input id="setCompany" maxlength="80" placeholder="leer = nur „Ordner-Regal“"></label>
+          <div class="logoRow">
+            <span class="muted small">Firmenlogo (PNG oder JPEG, max. 1 MB)</span>
+            <div class="row"><img id="logoPrev" class="logoPrev hidden" alt="Logo">
+              <label class="btn small" style="display:inline-block">Logo hochladen <input type="file" id="logoFile" accept="image/png,image/jpeg" hidden></label>
+              <button class="mini danger hidden" id="logoDel">entfernen</button></div>
+            <div class="err" id="logoErr"></div>
+          </div>
+          <label title="Gilt für alle, die kein eigenes Design gewählt haben">Standard-Design <select id="setTheme"></select></label>
+          <label>Öffentliche Adresse (Reverse Proxy, fürs DSM-Fenster über https)
+            <input id="setUrl" placeholder="https://regal.meinedomain.de"></label>
+        </fieldset>
+        <fieldset><legend>Anmeldung mit DSM-Konten</legend>
+          <label class="inline"><input type="checkbox" id="setDsmSso"> Anmeldung im DSM-Fenster ohne Passwort (Single Sign-on)</label>
+          <p class="small hidden" id="setSsoWarn" style="margin:0 0 6px"></p>
+          <label class="inline"><input type="checkbox" id="setDsmLogin"> Login mit DSM-Benutzer und -Passwort erlauben</label>
+          <label class="inline"><input type="checkbox" id="setDsmCreate"> unbekannte DSM-Benutzer automatisch anlegen (sehen nur Regale für alle)</label>
+          <label class="inline"><input type="checkbox" id="setDsmAdmins"> DSM-Administratoren bekommen Vollzugriff</label>
+          <p class="muted small" style="margin:0 0 6px 26px">Wird wieder entzogen, wenn jemand kein DSM-Administrator mehr ist oder das hier ausgeschaltet wird.</p>
+          <label>DSM-Adresse für die Passwortprüfung <select id="setDsmUrl">
+            <option value="http://127.0.0.1:5000">http://127.0.0.1:5000 (DSM, Standard)</option>
+            <option value="https://127.0.0.1:5001">https://127.0.0.1:5001 (DSM über https)</option></select></label>
+          <p class="muted small">Nur die DSM-Anmeldung auf der NAS selbst – die Passwörter verlassen die NAS nie und gehen an keinen anderen Dienst.</p>
+        </fieldset>
+        <fieldset><legend>Zugriff</legend>
+          <label class="inline"><input type="checkbox" id="setHttp"> Unverschlüsselter Zugriff (http) aus dem Netz erlauben</label>
+          <p class="muted small" style="margin-top:2px">Aus: Die Weboberfläche gibt es nur im DSM-Fenster und über https (Reverse Proxy). Über http könnten
+            Passwörter und Anmeldungen im Netz mitgelesen werden. Die Paketquelle funktioniert in beiden Fällen.</p>
+        </fieldset>
+      </div>
+      <div class="savebar">
+        <button class="primary" id="setBtn">Einstellungen speichern</button>
+        <div class="err" id="setErr"></div>
+      </div>
+    </section>
+
+    <section class="card asec" data-asec="mail">
+      <h2>Mailserver (SMTP)</h2>
+      <p class="muted small" style="margin-top:0">Für Testmails – und ab Version 0.4 für Fristen-Erinnerungen.</p>
+      <p class="muted small" style="margin-top:0">Das Passwort wird nicht in Datensicherungen gespeichert.</p>
+      <div class="setgrid">
+        <fieldset><legend>Server</legend>
+          <label>Server <input id="smtpHost" placeholder="smtp.strato.de"></label>
+          <div class="row">
+            <label>Port <input id="smtpPort" type="number" min="1" max="65535" class="w80"></label>
+            <label style="flex:1">Verschlüsselung <select id="smtpSec">
+              <option value="starttls">STARTTLS (Port 587)</option>
+              <option value="ssl">SSL/TLS (Port 465)</option>
+              <option value="none">keine (nur im LAN)</option>
+            </select></label>
+          </div>
+          <label>Benutzer <input id="smtpUser" autocomplete="off"></label>
+          <label>Passwort <input id="smtpPw" type="password" autocomplete="new-password" placeholder="leer = unverändert"></label>
+        </fieldset>
+        <fieldset><legend>Absender &amp; Test</legend>
+          <label>Absender-Adresse <input id="smtpFrom" type="email" placeholder="regal@meinedomain.de"></label>
+          <label>Absender-Name <input id="smtpFromName" placeholder="Ordner-Regal"></label>
+          <label>Testmail an <input id="mailTestTo" type="email"></label>
+          <div class="row"><button class="primary" id="mailSave">Speichern</button><button id="mailTest">Testmail senden</button></div>
+        </fieldset>
+      </div>
+      <div class="err" id="mailErr"></div>
+    </section>
+
+    <section class="card asec" data-asec="system">
+      <h2>Port</h2>
+      <p class="muted small" style="margin-top:0">Auf diesem Port läuft das Ordner-Regal im Heimnetz. Nach dem Speichern startet es sich selbst neu –
+        im DSM-Fenster geht es danach einfach weiter.</p>
+      <div class="row">
+        <label>Port <input id="portVal" type="number" min="1025" max="65535" class="w120"></label>
+        <label>&nbsp;<button id="portSave">Port ändern</button></label>
+      </div>
+      <p class="muted small">Danach anpassen, falls eingerichtet: Paketquelle im Paket-Zentrum (Adresse unten bei „Updates“) und das Ziel im Reverse Proxy von DSM.</p>
+      <div class="err" id="portErr"></div>
+    </section>
+
+    <section class="card asec" data-asec="system">
+      <h2>Eigener Reverse Proxy</h2>
+      <p class="muted small" style="margin-top:0">Läuft vor dem Ordner-Regal ein eigener Proxy auf einem anderen Gerät (z. B. Nginx Proxy Manager
+        mit Portweiterleitung), hier seine IP eintragen. Dann sieht die App die echte Absender-Adresse aus <span class="mono">X-Forwarded-For</span> –
+        wichtig für die Sperre gegen Durchprobieren, das Protokoll und die nur im LAN erreichbare Paketquelle. Der Reverse Proxy von DSM auf der
+        NAS selbst braucht keinen Eintrag.</p>
+      <div class="row">
+        <label style="flex:1">IP-Adresse(n) des Proxys <input id="pxVal" class="mono" placeholder="z. B. 192.168.90.26"></label>
+        <label>&nbsp;<button id="pxSave">Speichern</button></label>
+      </div>
+      <p class="small" id="pxInfo"></p>
+      <div class="err" id="pxErr"></div>
+    </section>
+
+    <section class="card asec" data-asec="system">
+      <h2>Datensicherung</h2>
+      <p class="muted small" style="margin-top:0">Jede Nacht eine geprüfte Sicherung der Datenbank: immer im Paketordner (die letzten 7)
+        und zusätzlich in einem freigegebenen Ordner, den Hyper Backup mitsichern kann. Achtung: Beim Deinstallieren des Pakets
+        wird der Paketordner gelöscht – deshalb unbedingt einen freigegebenen Ordner eintragen.</p>
+      <div class="row">
+        <label class="inline"><input type="checkbox" id="bkEnabled"> jede Nacht sichern um</label>
+        <select id="bkHour" style="width:90px"></select>
+        <label style="flex:1;min-width:260px">Freigegebener Ordner
+          <input id="bkDir" placeholder="/volume1/backup/ordnerregal"></label>
+        <label>aufheben (Tage) <input id="bkKeep" type="number" min="1" max="3650" class="w80"></label>
+        <label>&nbsp;<button class="primary" id="bkSave">Speichern</button></label>
+      </div>
+      <details class="small" style="margin:8px 0">
+        <summary>Schreibrechte für den Ordner einrichten</summary>
+        <ol style="padding-left:20px;margin:6px 0">
+          <li>DSM → <b>Systemsteuerung</b> → <b>Freigegebener Ordner</b> → z. B. <code>backup</code> auswählen (oder neu anlegen) → <b>Bearbeiten</b>.</li>
+          <li>Reiter <b>Berechtigungen</b> → oben links im Auswahlfeld <b>System-interner Benutzer</b> wählen.</li>
+          <li>Bei <b>ordnerregal</b> den Haken <b>Lesen/Schreiben</b> setzen → <b>Speichern</b>.</li>
+          <li>Hier als Ordner z. B. <code>/volume1/backup/ordnerregal</code> eintragen und speichern – der Unterordner wird angelegt.</li>
+        </ol>
+        Die Sicherungen enthalten das Regal (Ordner, Register, Verweise, Schlagworte) und Passwort-Hashes – nicht die Dokumente selbst; die sichert Hyper Backup mit den Freigaben. Den Ordner bitte nicht für alle freigeben. Das Mail-Passwort wird nicht mitgesichert.
+      </details>
+      <div class="row">
+        <span id="bkInfo" class="muted small"></span>
+        <button id="bkNow">Sicherung jetzt erstellen</button>
+        <button id="bkDel" class="danger hidden">Ausgewählte löschen</button>
+      </div>
+      <div class="err" id="bkErr"></div>
+      <div class="scroll" style="max-height:300px;margin-top:8px"><table id="bkTable"></table></div>
+    </section>
+
+    <section class="card asec" data-asec="system">
+      <h2>Updates</h2>
+      <div class="row">
+        <span id="updInfo" class="muted">…</span>
+        <button id="updCheck" class="mini">Jetzt prüfen</button>
+      </div>
+      <p class="small" style="margin-bottom:6px">Updates kommen über das <b>Paket-Zentrum</b> – einmalig einrichten:</p>
+      <ol class="small" style="margin-top:0;padding-left:20px">
+        <li>Paket-Zentrum → <b>Einstellungen</b> → <b>Allgemein</b> → Vertrauensebene: <b>Beliebiger Herausgeber</b>.</li>
+        <li>Paket-Zentrum → <b>Einstellungen</b> → <b>Paketquellen</b> → <b>Hinzufügen</b>:
+          Name <code>Ordner-Regal</code>, Ort <code id="updSrc">http://127.0.0.1:8790/spk</code>
+          <button class="mini" id="updCopy">Kopieren</button></li>
+        <li>Neue Versionen erscheinen dann im Paket-Zentrum unter <b>Installiert</b> mit „Aktualisieren“
+          (oder automatisch, wenn dort automatische Updates eingeschaltet sind). Daten und Einstellungen bleiben erhalten.</li>
+      </ol>
+      <div class="err" id="updErr"></div>
+    </section>
+
+    <section class="card asec" data-asec="protokoll">
+      <h2>Änderungsprotokoll</h2>
+      <p class="muted small" style="margin-top:0">Wer hat wann was geändert. Einträge lassen sich nicht ändern oder löschen.</p>
+      <div class="row">
+        <label>Benutzer <select id="alUser"><option value="">alle</option></select></label>
+        <label>von <input type="date" id="alFrom"></label>
+        <label>bis <input type="date" id="alTo"></label>
+        <label>Bereich <select id="alCat"><option value="">alle</option></select></label>
+        <label>Suche <input id="alQ" style="width:150px"></label>
+        <label>&nbsp;<button class="primary" id="alGo">Anzeigen</button></label>
+        <label>&nbsp;<button id="alCsv">CSV</button></label>
+      </div>
+      <div class="err" id="alErr"></div>
+      <div class="scroll" style="max-height:480px;margin-top:8px"><table id="alTable" class="audit"></table></div>
+      <div class="row" style="margin-top:8px"><button id="alMore" class="hidden">Ältere laden</button><span class="muted small" id="alCount"></span></div>
+    </section>
+  </div>
+
+  <!-- MEIN ZUGANG -->
+  <div data-page="me" class="page hidden">
+    <section class="card">
+      <div class="toolbar"><h2>Mein Zugang</h2><button id="logoutBtn">Abmelden</button></div>
+      <div class="row">
+        <label>Name <input id="meName" maxlength="80"></label>
+        <label>E-Mail (für Hinweise) <input id="meEmail" type="email" style="width:240px"></label>
+        <label>&nbsp;<button class="primary" id="meSave">Speichern</button></label>
+      </div>
+      <p class="muted small" id="meInfo"></p>
+      <div class="err" id="meErr"></div>
+    </section>
+    <section class="card">
+      <h2>Design</h2>
+      <div class="themes" id="themes"></div>
+    </section>
+    <section class="card" id="pwCard">
+      <h2>Passwort ändern</h2>
+      <div class="row">
+        <label>Altes Passwort <input id="pwOld" type="password" autocomplete="current-password"></label>
+        <label>Neues Passwort (mind. 8 Zeichen) <input id="pwNew" type="password" autocomplete="new-password"></label>
+        <label>&nbsp;<button id="pwSave">Ändern</button></label>
+      </div>
+      <div class="err" id="pwErr"></div>
+    </section>
+    <p class="muted small" style="text-align:center">Ordner-Regal <span id="version"></span> · <a href="https://github.com/rinkelzz/ordner-regal" target="_blank" rel="noopener">GitHub</a></p>
+  </div>
+</main>
+</div>
+
+<div id="sheet" class="sheet hidden" role="dialog" aria-modal="true"></div>
+<script src="static/app.js?v={{v}}"></script>
+<script src="static/regal.js?v={{v}}"></script>
+</body>
+</html>

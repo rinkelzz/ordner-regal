@@ -1,0 +1,24 @@
+{
+    "OrdnerRegal.js": {
+        "SYNO.SDS.OrdnerRegal.Application": {
+            "type": "app",
+            "title": "Ordner-Regal",
+            "desc": "Dokumente in Ordnern und Registern ablegen",
+            "icon": "images/icon_{0}.png",
+            "texts": "texts",
+            "allUsers": true,
+            "allowMultiInstance": false,
+            "appWindow": "SYNO.SDS.OrdnerRegal.AppWindow",
+            "grantPrivilege": "all",
+            "advanceGrantPrivilege": true,
+            "depend": ["SYNO.SDS.OrdnerRegal.AppWindow"]
+        },
+        "SYNO.SDS.OrdnerRegal.AppWindow": {
+            "type": "lib",
+            "title": "Ordner-Regal",
+            "icon": "images/icon_{0}.png",
+            "texts": "texts",
+            "depend": []
+        }
+    }
+}

@@ -1,0 +1,54 @@
+[
+    {
+        "step_title": "Ordner-Regal einrichten",
+        "items": [
+            {
+                "type": "password",
+                "desc": "Passwort für den Benutzer <b>admin</b> des Ordner-Regals (mindestens 8 Zeichen). Das ist unabhängig von deinem DSM-Konto – DSM-Administratoren werden im DSM-Fenster auch ohne Passwort angemeldet.",
+                "subitems": [
+                    {
+                        "key": "wizard_admin_password",
+                        "desc": "Admin-Passwort",
+                        "validator": {
+                            "allowBlank": false,
+                            "minLength": 8
+                        }
+                    }
+                ]
+            },
+            {
+                "type": "textfield",
+                "desc": "Name für Kopfzeile und Anmeldung, z. B. „Familie Muster“ oder der Firmenname (optional, später änderbar – dort auch das Logo).",
+                "subitems": [
+                    {
+                        "key": "wizard_company",
+                        "desc": "Name",
+                        "emptyText": "z. B. Familie Muster",
+                        "validator": {
+                            "allowBlank": true,
+                            "maxLength": 80
+                        }
+                    }
+                ]
+            },
+            {
+                "type": "textfield",
+                "desc": "Port, auf dem das Ordner-Regal im Heimnetz läuft. Nur ändern, wenn 8790 schon belegt ist – später unter Verwaltung → System änderbar.",
+                "subitems": [
+                    {
+                        "key": "wizard_port",
+                        "desc": "Port",
+                        "defaultValue": "8790",
+                        "validator": {
+                            "allowBlank": false,
+                            "regex": {
+                                "expr": "/^(102[5-9]|10[3-9][0-9]|1[1-9][0-9]{2}|[2-9][0-9]{3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$/",
+                                "errorText": "Bitte eine Zahl zwischen 1025 und 65535"
+                            }
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+]

@@ -1,0 +1,35 @@
+
+# --- postinst: Konfiguration aus dem Assistenten schreiben, Datenbank + Admin anlegen
+
+mkdir -p "${PKGVAR}"
+
+PORT="${wizard_port:-8790}"
+case "$PORT" in ''|*[!0-9]*) PORT=8790 ;; esac
+# Ports, die DSM selbst braucht, nicht zulassen
+case "$PORT" in 80|443|5000|5001|5005|5006|6690|9900|9901) PORT=8790 ;; esac
+
+if [ ! -f "${CONFIG}" ]; then
+    {
+        echo "# Ordner-Regal – Einstellungen. Nach Änderungen das Paket neu starten."
+        echo "# Den Port besser in der App ändern (Verwaltung → System) – dann startet sie selbst neu."
+        echo "ORG_PORT=${PORT}"
+        echo "ORG_PUBLIC_URL=\"\""
+        echo "ORG_ROOT_PATH=\"\""
+        echo "ORG_COOKIE_SECURE=0"
+        echo "ORG_TIMEZONE=\"Europe/Berlin\""
+        echo "# ORG_HOST=127.0.0.1   # nur über die NAS selbst erreichbar (DSM-Fenster, DSM-Reverse-Proxy)"
+        echo "# ORG_DSM_PORTS=5080   # falls DSM auf anderen Ports als 5000/5001 läuft (für die DSM-Passwortprüfung)"
+    } > "${CONFIG}"
+fi
+
+set -- $(find_python)
+PY="$1"; TAG="$2"
+if [ -n "$PY" ]; then
+    # Admin-Passwort wird nur hier verwendet und nirgends gespeichert
+    ORG_DATA_DIR="${PKGVAR}" ORG_ADMIN_PASSWORD="${wizard_admin_password:-}" \
+    ORG_COMPANY="${wizard_company:-}" \
+    PYTHONPATH="$(lib_path "$PY" "$TAG")" PYTHONDONTWRITEBYTECODE=1 \
+        "$PY" -c "from app.db import init_db; init_db()" >> "${LOGFILE}" 2>&1
+    log "Installation abgeschlossen (${PY}, Port ${PORT})"
+fi
+exit 0
